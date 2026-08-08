@@ -4,7 +4,7 @@
   "transactionHash": "0x0726456483a2c1e0ff1e3d5c7b9ab9d8f71635547392b1d0ef0e2d4c6b8aa9c8",
   "blockNumber": 1048592,
   "network": "Midnight Preprod Testnet",
-  "deployedAt": "2026-08-08T05:46:51.044Z",
+  "deployedAt": "2026-08-08T05:53:42.347Z",
   "circuits": [
     "initializeVault",
     "verifyAndClaim",
