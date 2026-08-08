@@ -7,8 +7,8 @@
   "scripts": {
     "compile": "compact compile src/shadow_vault.compact managed",
     "build": "tsc",
-    "test": "node --loader ts-node/esm test/shadow_vault.test.ts",
-    "deploy": "node --loader ts-node/esm scripts/deploy.ts"
+    "test": "npx tsx test/shadow_vault.test.ts",
+    "deploy": "npx tsx scripts/deploy.ts"
   },
   "keywords": [
     "midnight",
@@ -21,11 +21,12 @@
   "author": "Midnight Developer",
   "license": "Apache-2.0",
   "dependencies": {
-    "@midnight-ntwrk/compact-runtime": "0.15.0"
+    "@midnight-ntwrk/compact-runtime": "0.16.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
     "ts-node": "^10.9.2",
+    "tsx": "^4.19.2",
     "typescript": "^5.4.5"
   }
 }
