@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "file": "index.js",
+  "sourceRoot": "../../",
+  "sources": ["src/shadow_vault.compact"],
+  "names": [],
+  "mappings": ";;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;EAAA;;;;;;;;;;;;;;;;MAaA,AAAA,eAMC;;;;;cAN8B,YAAqB;cAAE,SAAkB;;;;;;;;;;;;;;;;;;;;;;;;;yCAAzC,YAAqB,+BAAE,SAAkB;;;;;;;;;iDAAzC,YAAqB;iDAAE,SAAkB;;;OAMvE;MAED,AAAA,cAQC;;;;;;;;;;;;;;;;;;;;;;OAAA;MAED,AAAA,WAGC;;;;;;;;;;;;;;;;;;;;;;OAAA;;;;;;;;;;;;GACA;EAnCD;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;IAIA;;;;;;;;;yEAAgC;IAChC;;;;;;;;;yEAA0C;IAC1C;;;;;;;;;yEAA+B;IAC/B;;;;;;;;;yEAAsC;IACtC;;;;;;;;;yEAA2C;;;;;;;GA2B1C;EAzBD,AAAA,gBAAmC;;0DAAnC,aAAmC;;;;;;;;;;;;;;GAAA;EACnC,AAAA,WAA8B;;0DAA9B,QAA8B;;;;;;;;;;;;;;GAAA;EAE9B,AAAA,kBAMC,4BAN8B,YAAqB,EAAE,SAAkB;oDAC7D;;;;;;;;;;;yHAAK;;;;IACZ;;;;;;;2HAA4B,YAAU;;yEAAtB;IAChB;;;;;;;2HAAiB,SAAO;;yEAAnB;IACL;;;;;;;;;yEAAK;UACL,KAAa;;;;;6CAAI;;;;;;;;;;;kHAAa;;;IAA9B;;;;;;;2HAAA,KAAa;;yEAAA;;GAChB;EAED,AAAA,iBAQC;oDAPU;;;;;;;;;;;yHAAK;;;;UACN,QAAwB;UACxB,MAAiB;UACjB,cAA+B,GAAP,QAAM;UAC9B,YAA2B,GAAL,MAAI;IAChC;;;;;;;2HAAoB,cAAY;;yEAAf;IACjB;;;;;;;;;yEAAK;;GACR;EAED,AAAA,cAGC;oDAFU;;;;;;;;;;;yHAAK;;;;IACZ;;;;;;;;;yEAAK;;GACR;;;;;;;;;;;;;;;;IA9BD;qCAAA;;;;;;;;;;;0GAAgC;KAAA;IAChC;qCAAA;;;;;;;;;;;0GAA0C;KAAA;IAC1C;qCAAA;;;;;;;;;;;0GAA+B;KAAA;IAC/B;qCAAA;;;;;;;;;;;0GAAsC;KAAA;IACtC;qCAAA;;;;;;;;;;;0GAA2C;KAAA;;;;;;;;;;;;"
+}
