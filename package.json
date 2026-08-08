@@ -1,0 +1,31 @@
+{
+  "name": "midnight-shadow-vault",
+  "version": "1.0.0",
+  "description": "ShadowVault: Privacy-Preserving Shielded Escrow & Secret Verification System on Midnight Blockchain",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "compile": "compact compile src/shadow_vault.compact managed",
+    "build": "tsc",
+    "test": "node --loader ts-node/esm test/shadow_vault.test.ts",
+    "deploy": "node --loader ts-node/esm scripts/deploy.ts"
+  },
+  "keywords": [
+    "midnight",
+    "compact",
+    "zero-knowledge",
+    "privacy",
+    "blockchain",
+    "smart-contracts"
+  ],
+  "author": "Midnight Developer",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@midnight-ntwrk/compact-runtime": "0.15.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
