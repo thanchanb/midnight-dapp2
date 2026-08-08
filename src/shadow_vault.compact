@@ -1,0 +1,35 @@
+pragma language_version >= 0.14.0;
+
+export enum VaultState { uninitialized, active, claimed, revoked }
+
+export ledger state: VaultState;
+export ledger publicCommitment: Bytes<32>;
+export ledger owner: Bytes<32>;
+export ledger totalDeposits: Uint<64>;
+export ledger lastDisclosedHash: Bytes<32>;
+
+witness secretWitness(): Bytes<32>;
+witness userSalt(): Bytes<32>;
+
+export circuit initializeVault(commitment: Bytes<32>, ownerId: Bytes<32>): [] {
+    assert(state == VaultState.uninitialized, "Vault already initialized");
+    publicCommitment = disclose(commitment);
+    owner = disclose(ownerId);
+    state = VaultState.active;
+    totalDeposits = (totalDeposits + 1) as Uint<64>;
+}
+
+export circuit verifyAndClaim(): [] {
+    assert(state == VaultState.active, "Vault must be active to claim");
+    const secret = secretWitness();
+    const salt = userSalt();
+    const publicSecret = disclose(secret);
+    const publicSalt = disclose(salt);
+    lastDisclosedHash = publicSecret;
+    state = VaultState.claimed;
+}
+
+export circuit revokeVault(): [] {
+    assert(state == VaultState.active, "Vault must be active to revoke");
+    state = VaultState.revoked;
+}
