@@ -5,6 +5,9 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
+    "dev": "vite",
+    "build:ui": "vite build",
+    "preview": "vite preview",
     "compile": "compact compile src/shadow_vault.compact managed",
     "build": "tsc",
     "test": "npx tsx test/shadow_vault.test.ts",
@@ -27,6 +30,7 @@
     "@types/node": "^22.0.0",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vite": "^5.4.0"
   }
 }
