@@ -8,7 +8,7 @@
     "dev": "vite",
     "build:ui": "vite build",
     "preview": "vite preview",
-    "compile": "compact compile src/shadow_vault.compact managed",
+    "compile": "compact compile contracts/shadow_vault.compact managed",
     "build": "tsc",
     "test": "npx tsx test/shadow_vault.test.ts",
     "deploy": "npx tsx scripts/deploy.ts"

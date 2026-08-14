@@ -11,19 +11,23 @@ export type NetworkIdType = typeof NetworkId[keyof typeof NetworkId] | MidnightN
 
 let currentNetworkId: string = NetworkId.Undeployed;
 
-export function setNetworkId(id: NetworkIdType): void {
+export function setNetworkId(id: NetworkIdType): string {
   try {
-    setMidnightNetworkId(id);
+    setMidnightNetworkId(id as MidnightNetworkId);
   } catch {
-    // Fallback if WASM runtime context is uninitialized
+    // Fallback in case of non-standard environment
   }
   currentNetworkId = id;
+  return getNetworkId();
 }
 
 export function getNetworkId(): string {
   try {
-    return getMidnightNetworkId();
+    const midnightId = getMidnightNetworkId();
+    if (midnightId) return midnightId;
   } catch {
-    return currentNetworkId;
+    // Fallback if WASM context not initialized
   }
+  return currentNetworkId;
 }
+

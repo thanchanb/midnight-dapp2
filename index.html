@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🌙 Midnight ShadowVault — Privacy DApp (Preprod)</title>
-  <meta name="description" content="Privacy-preserving zero-knowledge conditional escrow DApp built on Midnight Blockchain with Compact and Lace Wallet.">
+  <title>🌙 Midnight ShadowVault — Privacy DApp (Preprod Testnet)</title>
+  <meta name="description" content="Privacy-preserving zero-knowledge conditional escrow & secret verification DApp built on Midnight Blockchain with Compact WASM Prover and Lace Wallet.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/src/style.css">
 </head>
 <body>
@@ -23,9 +23,19 @@
       </div>
 
       <div class="nav-right">
+        <div class="network-selector-container">
+          <label for="networkSelect" class="network-label">setNetworkId():</label>
+          <select id="networkSelect" class="network-select">
+            <option value="TestNet" selected>TestNet (Midnight Testnet)</option>
+            <option value="Undeployed">Undeployed (Local Prover)</option>
+            <option value="DevNet">DevNet (Developer Net)</option>
+            <option value="MainNet">MainNet (Midnight Mainnet)</option>
+          </select>
+        </div>
+
         <div class="network-badge" id="networkBadge">
           <span class="status-dot green"></span>
-          <span class="network-name">Midnight Preprod</span>
+          <span class="network-name" id="verifiedNetworkName">Verified: TestNet</span>
         </div>
 
         <button id="connectWalletBtn" class="btn btn-connect">
@@ -38,12 +48,12 @@
     <!-- Main Container -->
     <main class="main-container">
       
-      <!-- Privacy Banner / Observable Privacy Behavior -->
+      <!-- Hero Privacy Banner / Observable Privacy Architecture -->
       <section class="privacy-banner">
         <div class="banner-header">
           <span class="badge badge-purple">🛡️ Observable Privacy Architecture</span>
           <h2>Zero-Knowledge Proofs in Action</h2>
-          <p>Your secret witness is calculated and proven <strong>locally inside your browser</strong>. The raw passphrase never leaves your machine — only zero-knowledge state updates touch the Midnight Preprod ledger.</p>
+          <p>Your secret witness is evaluated and proven <strong>locally inside your browser</strong> via `@midnight-ntwrk/compact-runtime`. The raw passphrase never touches the public ledger — only zero-knowledge state proofs and SHA-256 commitments update the Midnight Preprod blockchain.</p>
         </div>
 
         <div class="privacy-pipeline">
@@ -74,13 +84,13 @@
             <div class="step-content">
               <h4>Preprod Public Ledger</h4>
               <p>On-chain state & commitment hash</p>
-              <code id="ledgerStatusTag" class="code-tag cyan">📜 Verified On-Chain</code>
+              <code id="ledgerStatusTag" class="code-tag cyan">📜 On-Chain Verified</code>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- Grid Layout -->
+      <!-- Dashboard Grid -->
       <div class="dashboard-grid">
         
         <!-- Left Panel: Contract Control Form -->
@@ -152,14 +162,14 @@
 
           <!-- Tab Content: Revoke -->
           <div class="tab-content" id="tab-revoke">
-            <p class="tab-desc">Transition vault status to revoked if conditions are violated.</p>
+            <p class="tab-desc">Transition vault status to revoked if escrow conditions are violated.</p>
             <button id="btnExecRevoke" class="btn btn-danger btn-block">
               <span>🚫 Execute revokeVault Circuit</span>
             </button>
           </div>
         </section>
 
-        <!-- Right Panel: Live Ledger Monitor & Wallet Info -->
+        <!-- Right Panel: Live Ledger Monitor & Console -->
         <section class="card monitor-card">
           <div class="card-header">
             <h3>📊 Preprod Ledger State Monitor</h3>
@@ -220,7 +230,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <p>Midnight Level 2 — Waxing Crescent Submission | Powered by Compact 0.31.1 & Midnight.js</p>
+      <p>Midnight Level 2 & 3 Submission | Powered by Compact 0.31.1 & Midnight.js | Verified `setNetworkId()`</p>
     </footer>
   </div>
 

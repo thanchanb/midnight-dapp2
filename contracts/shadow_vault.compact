@@ -41,4 +41,3 @@ export circuit revokeVault(): [] {
     state = VaultState.revoked;
     counter = (counter + 1) as Uint<64>;
 }
-

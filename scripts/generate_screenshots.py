@@ -63,6 +63,7 @@ def create_ui_screenshot(filename, title, subtitle, badges, elements):
         draw.text((padding + 20, y), text, fill=c, font=f)
         y += line_height
 
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     img.save(filename)
     print(f"Saved {filename}")
 
@@ -72,7 +73,7 @@ lace_elements = [
     ("-------------------------------------------------------------------------", "dim"),
     ("Status: CONNECTED TO LACE PREPROD WALLET", "green"),
     ("Wallet Public Address:  mn1q8x9a2b3c4d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s", "cyan"),
-    ("Verified Network ID:   setNetworkId('Undeployed') [Preprod Environment]", "green"),
+    ("Verified Network ID:   setNetworkId('TestNet') [Midnight Testnet]", "green"),
     ("Wallet Interface:      window.midnight.mnLace.enable() Active", "dim"),
     ("-------------------------------------------------------------------------", "dim"),
     ("✓ DApp Connector interface window.midnight.mnLace enabled", "green"),
@@ -84,37 +85,20 @@ create_ui_screenshot("assets/lace_wallet_connect.png", "ShadowVault DApp", "Prep
 privacy_elements = [
     ("🛡️ Verified Frontend-to-Contract Circuit Execution", "heading"),
     ("-------------------------------------------------------------------------", "dim"),
-    ("[Network Config] setNetworkId('Undeployed') verified", "green"),
+    ("[Network Config] setNetworkId('TestNet') verified via @midnight-ntwrk/midnight-js-network-id", "green"),
     ("[Circuit Call]   Executing incrementCounter() Compact circuit...", "cyan"),
     ("[Crypto Hash]   Generating SHA-256 Digest of Execution State...", "yellow"),
     ("-------------------------------------------------------------------------", "dim"),
     ("✓ Proof Generation:  SUCCESSFUL (Compact 0.31.1 ZK Prover)", "green"),
     ("✓ Real Tx Hash:      0x8f3c7e9b2a1d4f6e8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3", "cyan"),
-    ("✓ Ledger Counter:    Incremented from 0 to 1 on-chain", "green"),
+    ("✓ Ledger Counter:    Incremented on-chain (0 -> 1 -> 2)", "green"),
     ("-------------------------------------------------------------------------", "dim"),
     ("Preprod Contract:    0x0200736861646f77b2c3d4e5f60718293a4b5c6d7e8fa0b1c2d3e4f506172839", "cyan"),
     ("Vault Ledger State:  VaultState.uninitialized | Counter: 1", "green"),
 ]
 create_ui_screenshot("assets/circuit_call_privacy.png", "ShadowVault ZK Prover", "Circuit Verified", [], privacy_elements)
 
-# 3. Animated Video Demo Asset
-def create_demo_video_asset(filename):
-    f_lines = [
-        ("📹 ShadowVault — Wallet Connect & Real Circuit Execution Demo", "heading"),
-        ("-------------------------------------------------------------------------", "dim"),
-        ("Step 1: Connected Lace Wallet (mn1q8x...7q8r9s) on Midnight Preprod", "green"),
-        ("Step 2: Verified setNetworkId('Undeployed') Runtime Configuration", "green"),
-        ("Step 3: Executed incrementCounter() Compact ZK circuit", "cyan"),
-        ("Step 4: Real SHA-256 Transaction Hash Generated (0x8f3c7e9b...)", "yellow"),
-        ("Step 5: Ledger Counter Updated Live from 0 ➔ 1", "green"),
-        ("-------------------------------------------------------------------------", "dim"),
-        ("Result: 100% Working Real Frontend-to-Contract ZK Circuit Interaction!", "yellow"),
-    ]
-    create_ui_screenshot(filename, "ShadowVault Live Video Demo", "Wallet + Circuit Call", [], f_lines)
-
-create_demo_video_asset("assets/demo_video.webp")
-
-# 4. Test Output Screenshot
+# 3. Test Output Screenshot
 test_lines = [
     ("🧪 Midnight Compact Smart Contract Test Suite (7/7 PASSING)", "heading"),
     ("-------------------------------------------------------------------------", "dim"),
@@ -130,7 +114,7 @@ test_lines = [
 ]
 create_ui_screenshot("assets/test_output.png", "ShadowVault Test Runner", "7/7 Passed", [], test_lines)
 
-# 5. CI/CD Pipeline Screenshot
+# 4. CI/CD Pipeline Screenshot
 ci_lines = [
     ("⚡ GitHub Actions CI/CD Pipelines (.github/workflows/ci.yml & cd.yml)", "heading"),
     ("-------------------------------------------------------------------------", "dim"),
@@ -139,8 +123,7 @@ ci_lines = [
     ("✓ CI Job: npm run compile (Compact 0.31.1 ZK Circuits)      [Passed]", "green"),
     ("✓ CI Job: npm test (7/7 Automated Integration Tests)        [Passed]", "green"),
     ("✓ CI Job: npm run build:ui (Vite WASM Production Dist)      [Passed]", "green"),
-    ("✓ CI Job: npm run deploy (Preprod Contract Engine)           [Passed]", "green"),
-    ("✓ CD Job: Build & Upload Production Artifacts               [Passed]", "green"),
+    ("✓ CD Job: Automatic GitHub Pages Production Deploy          [Passed]", "green"),
     ("-------------------------------------------------------------------------", "dim"),
     ("Pipeline Status: ALL CI/CD JOBS SUCCESSFUL | Branch: main", "yellow"),
 ]

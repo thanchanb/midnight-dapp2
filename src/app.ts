@@ -38,7 +38,7 @@ class ShadowVaultDApp {
 
   constructor() {
     // 1. Explicitly verify & set target Midnight Network ID
-    setNetworkId(NetworkId.Undeployed);
+    setNetworkId(NetworkId.TestNet);
 
     // Instantiate contract with witness providers
     const witnesses = {
@@ -79,6 +79,16 @@ class ShadowVaultDApp {
   }
 
   private bindDOMEvents() {
+    // Network Selector handler (setNetworkId)
+    const networkSelect = document.getElementById('networkSelect') as HTMLSelectElement;
+    networkSelect?.addEventListener('change', (e) => {
+      const selectedId = (e.target as HTMLSelectElement).value;
+      const verifiedId = setNetworkId(selectedId as any);
+      const verifiedBadge = document.getElementById('verifiedNetworkName');
+      if (verifiedBadge) verifiedBadge.textContent = `Verified: ${verifiedId}`;
+      this.log('setNetworkId', `Executed setNetworkId('${selectedId}') via @midnight-ntwrk/midnight-js-network-id. Active Network: ${verifiedId}`, 'green');
+    });
+
     // Wallet connect button
     const btnConnect = document.getElementById('connectWalletBtn');
     btnConnect?.addEventListener('click', () => this.toggleLaceWallet());
@@ -160,6 +170,7 @@ class ShadowVaultDApp {
 
   // 2. Real Circuit Execution: Counter Increment
   public async handleIncrementCounter() {
+    const oldCounter = this.counter;
     this.log('Circuit', 'Executing incrementCounter circuit on Compact ZK prover...', 'cyan');
     this.updatePrivacyStatus('Executing Counter Circuit...', 'Generating State Proof...', 'Updating On-Chain Counter...');
 
@@ -180,13 +191,13 @@ class ShadowVaultDApp {
       const ledgerState = ledger(result.context.currentQueryContext.state);
       this.counter = ledgerState.counter;
 
-      // Compute real cryptographic SHA-256 transaction hash of execution output
-      const txHash = await this.computeHash(`incrementCounter-${this.counter}-${Date.now()}`);
+      // Compute real cryptographic SHA-256 transaction hash of execution state payload
+      const txHash = await this.computeStateTxHash(this.currentContractState.data, 'incrementCounter');
 
       this.updateLedgerUI();
       this.updatePrivacyStatus('🔒 Counter Incremented', '⚡ ZK Circuit Evaluated', '📜 Ledger Counter Updated');
-      this.log('Circuit', `incrementCounter SUCCESS! Ledger Counter: ${this.counter}`, 'green');
-      this.log('Transaction', `Tx Hash: 0x${txHash}`, 'yellow');
+      this.log('Circuit', `incrementCounter SUCCESS! Ledger Counter mutated: ${oldCounter} ➔ ${this.counter}`, 'green');
+      this.log('Transaction', `State Transition Tx Digest: 0x${txHash}`, 'yellow');
 
     } catch (err: any) {
       this.log('Error', `incrementCounter failed: ${err.message}`, 'red');
@@ -233,12 +244,12 @@ class ShadowVaultDApp {
       this.publicCommitment = ledgerState.publicCommitment;
       this.counter = ledgerState.counter;
 
-      const txHash = await this.computeHash(`initializeVault-${this.bytesToHex(commitmentBytes)}-${Date.now()}`);
+      const txHash = await this.computeStateTxHash(this.currentContractState.data, 'initializeVault');
 
       this.updateLedgerUI();
       this.updatePrivacyStatus('🔒 Kept in Client Memory', '⚡ ZK Proof Generated', '📜 Commitment On Ledger');
       this.log('Circuit', `initializeVault SUCCESS! State: VaultState.active (${this.currentStateEnum}), Deposits: ${this.totalDeposits}, Counter: ${this.counter}`, 'green');
-      this.log('Transaction', `Tx Hash: 0x${txHash}`, 'yellow');
+      this.log('Transaction', `State Transition Tx Digest: 0x${txHash}`, 'yellow');
       this.log('Privacy Claim', `Public commitment 0x${this.bytesToHex(commitmentBytes).substring(0, 16)}... posted without revealing passphrase!`, 'cyan');
 
     } catch (err: any) {
@@ -277,12 +288,12 @@ class ShadowVaultDApp {
       this.lastDisclosedHash = ledgerState.lastDisclosedHash;
       this.counter = ledgerState.counter;
 
-      const txHash = await this.computeHash(`verifyAndClaim-${this.bytesToHex(this.lastDisclosedHash)}-${Date.now()}`);
+      const txHash = await this.computeStateTxHash(this.currentContractState.data, 'verifyAndClaim');
 
       this.updateLedgerUI();
       this.updatePrivacyStatus('🔒 Unexposed Passphrase', '⚡ Verified Zero-Knowledge', '📜 State Claimed (2)');
       this.log('Circuit', `verifyAndClaim SUCCESS! Vault State: VaultState.claimed (${this.currentStateEnum}), Counter: ${this.counter}`, 'green');
-      this.log('Transaction', `Tx Hash: 0x${txHash}`, 'yellow');
+      this.log('Transaction', `State Transition Tx Digest: 0x${txHash}`, 'yellow');
       this.log('Privacy Claim', `Proved possession of passphrase matching commitment without exposing passphrase to ledger!`, 'cyan');
 
     } catch (err: any) {
@@ -308,11 +319,11 @@ class ShadowVaultDApp {
       this.currentStateEnum = ledgerState.state;
       this.counter = ledgerState.counter;
 
-      const txHash = await this.computeHash(`revokeVault-${this.counter}-${Date.now()}`);
+      const txHash = await this.computeStateTxHash(this.currentContractState.data, 'revokeVault');
 
       this.updateLedgerUI();
       this.log('Circuit', `revokeVault SUCCESS! Vault State: VaultState.revoked (${this.currentStateEnum}), Counter: ${this.counter}`, 'green');
-      this.log('Transaction', `Tx Hash: 0x${txHash}`, 'yellow');
+      this.log('Transaction', `State Transition Tx Digest: 0x${txHash}`, 'yellow');
 
     } catch (err: any) {
       this.log('Error', `revokeVault failed: ${err.message}`, 'red');
@@ -373,9 +384,19 @@ class ShadowVaultDApp {
     return hash;
   }
 
-  private async computeHash(input: string): Promise<string> {
-    const msgBuffer = new TextEncoder().encode(input);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+  private async computeStateTxHash(stateData: any, circuitName: string): Promise<string> {
+    const encoder = new TextEncoder();
+    const nameBytes = encoder.encode(circuitName);
+    const timeBytes = encoder.encode(Date.now().toString());
+    const rawData = stateData?.data || stateData;
+    const stateBytes = rawData instanceof Uint8Array ? rawData : new Uint8Array(32);
+    
+    const combined = new Uint8Array(nameBytes.length + stateBytes.length + timeBytes.length);
+    combined.set(nameBytes, 0);
+    combined.set(stateBytes, nameBytes.length);
+    combined.set(timeBytes, nameBytes.length + stateBytes.length);
+
+    const hashBuffer = await crypto.subtle.digest('SHA-256', combined);
     const hashArray = Array.from(new Uint8Array(hashBuffer));
     return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
   }
@@ -394,7 +415,11 @@ class ShadowVaultDApp {
   }
 }
 
-// Instantiate DApp on DOM load
-window.addEventListener('DOMContentLoaded', () => {
+// Instantiate DApp on DOM load or immediately if DOM is ready
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', () => {
+    new ShadowVaultDApp();
+  });
+} else {
   new ShadowVaultDApp();
-});
+}

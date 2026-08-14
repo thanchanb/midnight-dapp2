@@ -107,6 +107,35 @@ body {
   gap: 1.25rem;
 }
 
+.network-selector-container {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.network-label {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--accent-cyan);
+}
+
+.network-select {
+  background: rgba(12, 14, 20, 0.85);
+  color: #fff;
+  border: 1px solid var(--border-glow);
+  border-radius: 8px;
+  padding: 0.35rem 0.6rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  cursor: pointer;
+  outline: none;
+}
+
+.network-select:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.3);
+}
+
 .network-badge {
   display: flex;
   align-items: center;
