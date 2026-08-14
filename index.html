@@ -91,13 +91,22 @@
           </div>
 
           <div class="tabs">
-            <button class="tab-btn active" data-tab="init">1. Initialize Vault</button>
+            <button class="tab-btn active" data-tab="counter">0. Counter Circuit</button>
+            <button class="tab-btn" data-tab="init">1. Initialize Vault</button>
             <button class="tab-btn" data-tab="claim">2. ZK Claim</button>
             <button class="tab-btn" data-tab="revoke">3. Revoke</button>
           </div>
 
+          <!-- Tab Content: Counter -->
+          <div class="tab-content active" id="tab-counter">
+            <p class="tab-desc">Execute real <code>incrementCounter()</code> Compact circuit on Midnight ledger to increment on-chain counter state.</p>
+            <button id="btnExecCounter" class="btn btn-primary btn-block">
+              <span>➕ Execute incrementCounter Circuit</span>
+            </button>
+          </div>
+
           <!-- Tab Content: Initialize -->
-          <div class="tab-content active" id="tab-init">
+          <div class="tab-content" id="tab-init">
             <p class="tab-desc">Post a zero-knowledge commitment hash on-chain to create a shielded escrow vault.</p>
             
             <div class="form-group">
@@ -158,6 +167,11 @@
           </div>
 
           <div class="ledger-metrics">
+            <div class="metric-box">
+              <span class="metric-label">Ledger Counter</span>
+              <span class="metric-value" id="displayCounterValue">0</span>
+            </div>
+
             <div class="metric-box">
               <span class="metric-label">Vault State</span>
               <span class="metric-value badge-state" id="displayVaultState">UNINITIALIZED</span>

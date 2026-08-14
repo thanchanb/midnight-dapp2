@@ -1,14 +1,14 @@
-name: Midnight DApp CI/CD Pipeline
+name: Midnight DApp Continuous Integration (CI) Pipeline
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, master ]
 
 jobs:
-  build-test-deploy:
-    name: Compact Compile, Test & Production Build
+  ci-build-and-test:
+    name: Compact Circuit Compilation, 7-Stage Test Suite & Production UI Build
     runs-on: ubuntu-latest
 
     steps:
@@ -36,11 +36,11 @@ jobs:
       - name: 🔨 Compile Compact Smart Contract (ZK Circuits)
         run: npm run compile
 
-      - name: 🧪 Execute Automated Test Suite (5/5 Tests)
+      - name: 🧪 Execute Automated 7-Stage Test Suite
         run: npm test
 
       - name: 🏗️ Build Vite Static Web UI (Production Dist)
         run: npm run build:ui
 
-      - name: 🚀 Simulate Preprod Contract Deployment
+      - name: 🚀 Verify Contract Deployment Engine
         run: npm run deploy

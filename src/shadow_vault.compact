@@ -6,10 +6,15 @@ export ledger state: VaultState;
 export ledger publicCommitment: Bytes<32>;
 export ledger owner: Bytes<32>;
 export ledger totalDeposits: Uint<64>;
+export ledger counter: Uint<64>;
 export ledger lastDisclosedHash: Bytes<32>;
 
 witness secretWitness(): Bytes<32>;
 witness userSalt(): Bytes<32>;
+
+export circuit incrementCounter(): [] {
+    counter = (counter + 1) as Uint<64>;
+}
 
 export circuit initializeVault(commitment: Bytes<32>, ownerId: Bytes<32>): [] {
     assert(state == VaultState.uninitialized, "Vault already initialized");
@@ -17,6 +22,7 @@ export circuit initializeVault(commitment: Bytes<32>, ownerId: Bytes<32>): [] {
     owner = disclose(ownerId);
     state = VaultState.active;
     totalDeposits = (totalDeposits + 1) as Uint<64>;
+    counter = (counter + 1) as Uint<64>;
 }
 
 export circuit verifyAndClaim(): [] {
@@ -27,9 +33,12 @@ export circuit verifyAndClaim(): [] {
     const publicSalt = disclose(salt);
     lastDisclosedHash = publicSecret;
     state = VaultState.claimed;
+    counter = (counter + 1) as Uint<64>;
 }
 
 export circuit revokeVault(): [] {
     assert(state == VaultState.active, "Vault must be active to revoke");
     state = VaultState.revoked;
+    counter = (counter + 1) as Uint<64>;
 }
+

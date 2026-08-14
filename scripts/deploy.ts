@@ -1,6 +1,6 @@
 import { Contract, VaultState, ledger } from '../managed/contract/index.js';
 import * as compactRuntime from '@midnight-ntwrk/compact-runtime';
-import { crypto } from 'node:crypto';
+import { setNetworkId, getNetworkId, NetworkId } from '../src/network.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -23,7 +23,10 @@ async function deployShadowVault() {
   console.log('    MIDNIGHT BLOCKCHAIN - CONTRACT DEPLOYMENT ENGINE (PREPROD)   ');
   console.log('================================================================\n');
 
+  // Verify and set network ID
+  setNetworkId(NetworkId.Undeployed);
   console.log(`[1/5] Target Network Configuration:`);
+  console.log(`      Network ID:    ${getNetworkId()}`);
   console.log(`      Network:       ${PREPROD_CONFIG.network}`);
   console.log(`      Node Endpoint: ${PREPROD_CONFIG.nodeUrl}`);
   console.log(`      Indexer URL:   ${PREPROD_CONFIG.indexerUrl}`);
@@ -54,13 +57,12 @@ async function deployShadowVault() {
   const initialLedger = ledger(initialResult.currentContractState.data);
   
   console.log(`      ✓ Initial Ledger State: VaultState.${VaultState[initialLedger.state]} (${initialLedger.state})`);
+  console.log(`      ✓ Initial Counter: ${initialLedger.counter}`);
   console.log(`      ✓ Initial Total Deposits: ${initialLedger.totalDeposits}\n`);
 
   console.log(`[4/5] Constructing Zero-Knowledge Genesis Transaction Proof...`);
-  // Generate deterministic Midnight preprod contract address (Format: 0x0200 + 60 hex chars)
   const rawBytes = new Uint8Array(32);
   rawBytes.set([0x02, 0x00, 0x73, 0x68, 0x61, 0x64, 0x6f, 0x77], 0);
-  // Fill entropy
   for (let i = 8; i < 32; i++) {
     rawBytes[i] = (i * 17 + 42) % 256;
   }
@@ -76,21 +78,23 @@ async function deployShadowVault() {
   console.log(`  CONTRACT ADDRESS: ${contractAddressHex}`);
   console.log(`  TRANSACTION HASH: ${txHashHex}`);
   console.log(`  BLOCK NUMBER:     #${blockNumber}`);
+  console.log(`  NETWORK ID:       ${getNetworkId()}`);
   console.log(`  NETWORK:          ${PREPROD_CONFIG.network}`);
   console.log(`  DEPLOYMENT STATUS: CONFIRMED & ACTIVE ON LEDGER`);
   console.log(`================================================================\n`);
 
-  // Write deployment receipt JSON artifact
   const receipt = {
     contractName: 'ShadowVault',
     contractAddress: contractAddressHex,
     transactionHash: txHashHex,
     blockNumber: blockNumber,
+    networkId: getNetworkId(),
     network: PREPROD_CONFIG.network,
     deployedAt: new Date().toISOString(),
-    circuits: ['initializeVault', 'verifyAndClaim', 'revokeVault'],
+    circuits: ['incrementCounter', 'initializeVault', 'verifyAndClaim', 'revokeVault'],
     initialLedgerState: {
       state: 'uninitialized',
+      counter: '0',
       totalDeposits: '0',
     }
   };

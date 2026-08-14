@@ -4,6 +4,18 @@
   "runtime-version": "0.16.0",
   "circuits": [
     {
+      "name": "incrementCounter",
+      "pure": false,
+      "proof": true,
+      "arguments": [
+      ],
+      "result-type": {
+        "type-name": "Tuple",
+        "types": [
+        ]
+      }
+    },
+    {
       "name": "initializeVault",
       "pure": false,
       "proof": true,
@@ -124,8 +136,18 @@
       }
     },
     {
-      "name": "lastDisclosedHash",
+      "name": "counter",
       "index": 4,
+      "exported": true,
+      "storage": "Cell",
+      "type": {
+        "type-name": "Uint",
+        "maxval": 18446744073709551615
+      }
+    },
+    {
+      "name": "lastDisclosedHash",
+      "index": 5,
       "exported": true,
       "storage": "Cell",
       "type": {

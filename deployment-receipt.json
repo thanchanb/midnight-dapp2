@@ -3,15 +3,18 @@
   "contractAddress": "0x0200736861646f77b2c3d4e5f60718293a4b5c6d7e8fa0b1c2d3e4f506172839",
   "transactionHash": "0x0726456483a2c1e0ff1e3d5c7b9ab9d8f71635547392b1d0ef0e2d4c6b8aa9c8",
   "blockNumber": 1048592,
+  "networkId": "Undeployed",
   "network": "Midnight Preprod Testnet",
-  "deployedAt": "2026-08-08T05:55:42.410Z",
+  "deployedAt": "2026-08-14T09:32:25.928Z",
   "circuits": [
+    "incrementCounter",
     "initializeVault",
     "verifyAndClaim",
     "revokeVault"
   ],
   "initialLedgerState": {
     "state": "uninitialized",
+    "counter": "0",
     "totalDeposits": "0"
   }
 }

@@ -9,6 +9,7 @@ export type Witnesses<PS> = {
 }
 
 export type ImpureCircuits<PS> = {
+  incrementCounter(context: __compactRuntime.CircuitContext<PS>): __compactRuntime.CircuitResults<PS, []>;
   initializeVault(context: __compactRuntime.CircuitContext<PS>,
                   commitment_0: Uint8Array,
                   ownerId_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
@@ -17,6 +18,7 @@ export type ImpureCircuits<PS> = {
 }
 
 export type ProvableCircuits<PS> = {
+  incrementCounter(context: __compactRuntime.CircuitContext<PS>): __compactRuntime.CircuitResults<PS, []>;
   initializeVault(context: __compactRuntime.CircuitContext<PS>,
                   commitment_0: Uint8Array,
                   ownerId_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
@@ -28,6 +30,7 @@ export type PureCircuits = {
 }
 
 export type Circuits<PS> = {
+  incrementCounter(context: __compactRuntime.CircuitContext<PS>): __compactRuntime.CircuitResults<PS, []>;
   initializeVault(context: __compactRuntime.CircuitContext<PS>,
                   commitment_0: Uint8Array,
                   ownerId_0: Uint8Array): __compactRuntime.CircuitResults<PS, []>;
@@ -40,6 +43,7 @@ export type Ledger = {
   readonly publicCommitment: Uint8Array;
   readonly owner: Uint8Array;
   readonly totalDeposits: bigint;
+  readonly counter: bigint;
   readonly lastDisclosedHash: Uint8Array;
 }
 
