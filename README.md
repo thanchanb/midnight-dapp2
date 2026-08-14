@@ -1,12 +1,12 @@
-# 🌙 Midnight ShadowVault — Level 2: Waxing Crescent Submission
+# 🌙 Midnight ShadowVault — Level 2 (Waxing Crescent) & Level 3 (First Quarter) Submission
 
 [![CI Pipeline](https://github.com/thanchanb/midnight-dapp2/actions/workflows/ci.yml/badge.svg)](https://github.com/thanchanb/midnight-dapp2/actions)
 [![CD Pipeline](https://github.com/thanchanb/midnight-dapp2/actions/workflows/cd.yml/badge.svg)](https://github.com/thanchanb/midnight-dapp2/actions)
 [![Live Demo](https://img.shields.io/badge/Vercel-Live--Demo-00f2fe?style=flat&logo=vercel)](https://shadow-vault-midnight.vercel.app)
 [![Midnight Preprod](https://img.shields.io/badge/Midnight-Preprod--Testnet-7000ff?style=flat)](https://rpc.preprod.midnight.network)
 
-> **Midnight Blockchain Level 2: Waxing Crescent Developer Challenge**  
-> *Production-grade privacy-first dApp featuring verified `setNetworkId()`, real frontend-to-contract ZK circuit execution, live ledger counter tracking, cryptographic SHA-256 transaction hash generation, 7-stage automated test suite, GitHub Actions CI/CD, and video demonstration.*
+> **Midnight Blockchain Level 2 (Waxing Crescent) & Level 3 (First Quarter) Developer Challenge**  
+> *Production-grade privacy-first dApp featuring verified `setNetworkId()`, real frontend-to-contract ZK circuit execution, live ledger counter tracking, cryptographic SHA-256 transaction hash generation, formal product proposal (Sealed-Bid Auction), 7-stage automated test suite, GitHub Actions CI/CD pipelines, and video demonstration.*
 
 ---
 
@@ -18,18 +18,19 @@
 
 ---
 
-## 📋 Level 2 Waxing Crescent Checklist & Revisions Matrix
+## 📋 Comprehensive Submission & Revisions Matrix
 
-| Reviewer Requirement | Status | Implementation Details |
+| Reviewer Requirement | Status | Implementation & Verification Details |
 | :--- | :---: | :--- |
-| **Verified `setNetworkId()`** | ✅ FIXED | Integrated `@midnight-ntwrk/midnight-js-network-id` in `src/network.ts` & called on DApp init |
+| **Verified `setNetworkId()`** | ✅ FIXED | Integrated `@midnight-ntwrk/midnight-js-network-id` in `src/network.ts` & verified in Test Stage 1 |
 | **Verified Real Frontend-to-Contract Interaction** | ✅ FIXED | Executing `shadowVaultContract.circuits.incrementCounter()`, `initializeVault()`, `verifyAndClaim()` |
 | **Real Ledger Counter Updates** | ✅ FIXED | Added `counter: Uint<64>` on ledger state in `src/shadow_vault.compact` |
 | **Real Cryptographic Transaction Hashes** | ✅ FIXED | Replaced static fake hashes with Web Crypto SHA-256 digests (`crypto.subtle.digest('SHA-256')`) |
-| **Automated CI Pipeline** | ✅ FIXED | Added `.github/workflows/ci.yml` running Compact compile, 7-stage tests, and UI build |
-| **Automated CD Pipeline** | ✅ FIXED | Added `.github/workflows/cd.yml` for production artifact deployment |
+| **Product Proposal (Level 3 Requirement)** | ✅ COMPLETE | Sealed-Bid Auction & Confidential Escrow Protocol documented in [PROPOSAL.md](PROPOSAL.md) |
+| **Automated CI Pipeline** | ✅ FIXED | `.github/workflows/ci.yml` running Compact compile, 7-stage tests, UI build, and deployment |
+| **Automated CD Pipeline** | ✅ FIXED | `.github/workflows/cd.yml` for automated production artifact deployment |
 | **Video Demonstration attached in Readme** | ✅ FIXED | Embedded `assets/demo_video.webp` showing Lace wallet connect + circuit call |
-| **Working Live Demo Link** | ✅ VERIFIED | Live at [https://shadow-vault-midnight.vercel.app](https://shadow-vault-midnight.vercel.app) |
+| **Working Live Demo Link** | ✅ VERIFIED | Deployed and verified at [https://shadow-vault-midnight.vercel.app](https://shadow-vault-midnight.vercel.app) |
 
 ---
 
@@ -66,7 +67,7 @@ Midnight’s hybrid zero-knowledge state model partitions data into **Public Led
 
 | Category | Data / State Attribute | Observer Visibility | Storage / Execution Location |
 | :--- | :--- | :---: | :--- |
-| **Private Witness** | Secret Passphrase | ❌ CANNOT LEARN | Client Browser Memory (`Uint8Array`) |
+| **Private Witness** | Secret Passphrase / Bid Secret | ❌ CANNOT LEARN | Client Browser Memory (`Uint8Array`) |
 | **Private Witness** | User Salt Key (`userSalt()`) | ❌ CANNOT LEARN | Client Browser Memory (`Uint8Array`) |
 | **Public State** | Ledger Counter (`counter`) | ✅ CAN LEARN | Midnight Ledger Counter (`Uint<64>`) |
 | **Public State** | Vault Status (`state`) | ✅ CAN LEARN | Midnight Preprod Ledger (`VaultState`) |
@@ -74,6 +75,15 @@ Midnight’s hybrid zero-knowledge state model partitions data into **Public Led
 | **Public State** | Deposit Counter (`totalDeposits`) | ✅ CAN LEARN | On-Chain Ledger Counter (`Uint<64>`) |
 | **Public State** | Last Disclosed Hash (`lastDisclosedHash`) | ✅ CAN LEARN | On-Chain Ledger Storage |
 | **Public State** | Contract Address & Transaction ID | ✅ CAN LEARN | Midnight Preprod Indexer |
+
+---
+
+## 📜 Product Proposal: Sealed-Bid Auction & Confidential Escrow
+
+ShadowVault implements **Option 5: Sealed-Bid Auction & Confidential Escrow Protocol** detailed in full in [PROPOSAL.md](PROPOSAL.md).
+
+- **Problem Addressed**: Prevents front-running, bid leakage, and MEV exploitation common in public blockchain auctions.
+- **How It Works**: Bidders post zero-knowledge bid commitments on-chain. After bidding closes, the winner proves possession of a bid meeting auction criteria without exposing losing bid values or bidder identities.
 
 ---
 
@@ -152,9 +162,3 @@ npm test
 npm run build:ui
 npm run preview
 ```
-
----
-
-## 📜 Product Proposal: Sealed-Bid Auction & Confidential Escrow
-
-ShadowVault implements **Sealed-Bid Auction & Confidential Escrow Protocol** detailed in [PROPOSAL.md](PROPOSAL.md).
