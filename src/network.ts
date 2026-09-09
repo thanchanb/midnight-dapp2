@@ -9,13 +9,17 @@ export const NetworkId = {
 
 export type NetworkIdType = typeof NetworkId[keyof typeof NetworkId] | MidnightNetworkId;
 
-let currentNetworkId: string = NetworkId.Undeployed;
+let currentNetworkId: string = NetworkId.TestNet;
+
+export function isValidNetworkId(id: string): boolean {
+  return Object.values(NetworkId).includes(id as any);
+}
 
 export function setNetworkId(id: NetworkIdType): string {
   try {
     setMidnightNetworkId(id as MidnightNetworkId);
   } catch {
-    // Fallback in case of non-standard environment
+    // Fallback in case of browser/non-WASM execution context
   }
   currentNetworkId = id;
   return getNetworkId();
@@ -26,8 +30,19 @@ export function getNetworkId(): string {
     const midnightId = getMidnightNetworkId();
     if (midnightId) return midnightId;
   } catch {
-    // Fallback if WASM context not initialized
+    // Fallback if WASM context is not loaded yet
   }
   return currentNetworkId;
 }
+
+export function getNetworkDetails(id?: NetworkIdType) {
+  const activeId = id || getNetworkId();
+  return {
+    id: activeId,
+    name: activeId === NetworkId.TestNet ? 'Midnight Preprod Testnet' : `${activeId} Environment`,
+    rpcUrl: 'https://rpc.preprod.midnight.network',
+    isPreprod: activeId === NetworkId.TestNet || activeId === NetworkId.Undeployed,
+  };
+}
+
 
