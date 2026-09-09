@@ -81,7 +81,7 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('incrementCounter',
                                      'argument 1 (as invoked from Typescript)',
-                                     'shadow_vault.compact line 15 char 1',
+                                     'shadow_vault.compact line 19 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
@@ -106,21 +106,21 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('initializeVault',
                                      'argument 1 (as invoked from Typescript)',
-                                     'shadow_vault.compact line 19 char 1',
+                                     'shadow_vault.compact line 24 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
         if (!(commitment_0.buffer instanceof ArrayBuffer && commitment_0.BYTES_PER_ELEMENT === 1 && commitment_0.length === 32)) {
           __compactRuntime.typeError('initializeVault',
                                      'argument 1 (argument 2 as invoked from Typescript)',
-                                     'shadow_vault.compact line 19 char 1',
+                                     'shadow_vault.compact line 24 char 1',
                                      'Bytes<32>',
                                      commitment_0)
         }
         if (!(ownerId_0.buffer instanceof ArrayBuffer && ownerId_0.BYTES_PER_ELEMENT === 1 && ownerId_0.length === 32)) {
           __compactRuntime.typeError('initializeVault',
                                      'argument 2 (argument 3 as invoked from Typescript)',
-                                     'shadow_vault.compact line 19 char 1',
+                                     'shadow_vault.compact line 24 char 1',
                                      'Bytes<32>',
                                      ownerId_0)
         }
@@ -149,7 +149,7 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('verifyAndClaim',
                                      'argument 1 (as invoked from Typescript)',
-                                     'shadow_vault.compact line 28 char 1',
+                                     'shadow_vault.compact line 34 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
@@ -172,7 +172,7 @@ export class Contract {
         if (!(typeof(contextOrig_0) === 'object' && contextOrig_0.currentQueryContext != undefined)) {
           __compactRuntime.typeError('revokeVault',
                                      'argument 1 (as invoked from Typescript)',
-                                     'shadow_vault.compact line 39 char 1',
+                                     'shadow_vault.compact line 46 char 1',
                                      'CircuitContext',
                                      contextOrig_0)
         }
@@ -312,7 +312,7 @@ export class Contract {
     if (!(result_0.buffer instanceof ArrayBuffer && result_0.BYTES_PER_ELEMENT === 1 && result_0.length === 32)) {
       __compactRuntime.typeError('secretWitness',
                                  'return value',
-                                 'shadow_vault.compact line 12 char 1',
+                                 'shadow_vault.compact line 15 char 1',
                                  'Bytes<32>',
                                  result_0)
     }
@@ -329,7 +329,7 @@ export class Contract {
     if (!(result_0.buffer instanceof ArrayBuffer && result_0.BYTES_PER_ELEMENT === 1 && result_0.length === 32)) {
       __compactRuntime.typeError('userSalt',
                                  'return value',
-                                 'shadow_vault.compact line 13 char 1',
+                                 'shadow_vault.compact line 16 char 1',
                                  'Bytes<32>',
                                  result_0)
     }
@@ -342,7 +342,7 @@ export class Contract {
   _incrementCounter_0(context, partialProofData) {
     const tmp_0 = ((t1) => {
                     if (t1 > 18446744073709551615n) {
-                      throw new __compactRuntime.CompactError('shadow_vault.compact line 16 char 15: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
+                      throw new __compactRuntime.CompactError('shadow_vault.compact line 20 char 15: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
                     }
                     return t1;
                   })(_descriptor_0.fromValue(__compactRuntime.queryLedgerState(context,
@@ -419,7 +419,7 @@ export class Contract {
                                        { ins: { cached: false, n: 1 } }]);
     const tmp_0 = ((t1) => {
                     if (t1 > 18446744073709551615n) {
-                      throw new __compactRuntime.CompactError('shadow_vault.compact line 24 char 21: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
+                      throw new __compactRuntime.CompactError('shadow_vault.compact line 29 char 21: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
                     }
                     return t1;
                   })(_descriptor_0.fromValue(__compactRuntime.queryLedgerState(context,
@@ -448,7 +448,7 @@ export class Contract {
                                        { ins: { cached: false, n: 1 } }]);
     const tmp_1 = ((t1) => {
                     if (t1 > 18446744073709551615n) {
-                      throw new __compactRuntime.CompactError('shadow_vault.compact line 25 char 15: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
+                      throw new __compactRuntime.CompactError('shadow_vault.compact line 30 char 15: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
                     }
                     return t1;
                   })(_descriptor_0.fromValue(__compactRuntime.queryLedgerState(context,
@@ -519,7 +519,7 @@ export class Contract {
                                        { ins: { cached: false, n: 1 } }]);
     const tmp_0 = ((t1) => {
                     if (t1 > 18446744073709551615n) {
-                      throw new __compactRuntime.CompactError('shadow_vault.compact line 36 char 15: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
+                      throw new __compactRuntime.CompactError('shadow_vault.compact line 42 char 15: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
                     }
                     return t1;
                   })(_descriptor_0.fromValue(__compactRuntime.queryLedgerState(context,
@@ -576,7 +576,7 @@ export class Contract {
                                        { ins: { cached: false, n: 1 } }]);
     const tmp_0 = ((t1) => {
                     if (t1 > 18446744073709551615n) {
-                      throw new __compactRuntime.CompactError('shadow_vault.compact line 42 char 15: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
+                      throw new __compactRuntime.CompactError('shadow_vault.compact line 49 char 15: cast from Field or Uint value to smaller Uint value failed: ' + t1 + ' is greater than 18446744073709551615');
                     }
                     return t1;
                   })(_descriptor_0.fromValue(__compactRuntime.queryLedgerState(context,

@@ -1,7 +1,9 @@
 pragma language_version >= 0.14.0;
 
+// ShadowVault: Privacy-Preserving Shielded Escrow & ZK Secret Proof Protocol
 export enum VaultState { uninitialized, active, claimed, revoked }
 
+// Public Ledger State Storage
 export ledger state: VaultState;
 export ledger publicCommitment: Bytes<32>;
 export ledger owner: Bytes<32>;
@@ -9,13 +11,16 @@ export ledger totalDeposits: Uint<64>;
 export ledger counter: Uint<64>;
 export ledger lastDisclosedHash: Bytes<32>;
 
+// Private Client Witnesses (Evaluated exclusively in client-side ZK prover memory)
 witness secretWitness(): Bytes<32>;
 witness userSalt(): Bytes<32>;
 
+// Circuit 1: Mutates ledger counter state in zero-knowledge
 export circuit incrementCounter(): [] {
     counter = (counter + 1) as Uint<64>;
 }
 
+// Circuit 2: Binds commitment and owner on-chain while keeping secret preimage private
 export circuit initializeVault(commitment: Bytes<32>, ownerId: Bytes<32>): [] {
     assert(state == VaultState.uninitialized, "Vault already initialized");
     publicCommitment = disclose(commitment);
@@ -25,6 +30,7 @@ export circuit initializeVault(commitment: Bytes<32>, ownerId: Bytes<32>): [] {
     counter = (counter + 1) as Uint<64>;
 }
 
+// Circuit 3: Verifies private witness passphrase matching public commitment without exposing raw secret
 export circuit verifyAndClaim(): [] {
     assert(state == VaultState.active, "Vault must be active to claim");
     const secret = secretWitness();
@@ -36,8 +42,10 @@ export circuit verifyAndClaim(): [] {
     counter = (counter + 1) as Uint<64>;
 }
 
+// Circuit 4: Revokes active vault and increments ledger counter
 export circuit revokeVault(): [] {
     assert(state == VaultState.active, "Vault must be active to revoke");
     state = VaultState.revoked;
     counter = (counter + 1) as Uint<64>;
 }
+
