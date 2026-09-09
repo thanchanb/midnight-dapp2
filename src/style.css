@@ -599,6 +599,14 @@ input[type="password"]:focus {
 .log-line.yellow { color: var(--accent-yellow); }
 .log-line.red { color: var(--accent-red); }
 
+/* Connected State Animation */
+.btn-connect.connected {
+  background: linear-gradient(135deg, rgba(0, 230, 118, 0.2) 0%, rgba(0, 242, 254, 0.2) 100%);
+  border-color: var(--accent-green);
+  box-shadow: 0 0 16px rgba(0, 230, 118, 0.3);
+  color: var(--accent-green);
+}
+
 /* Footer */
 .footer {
   text-align: center;
@@ -608,3 +616,4 @@ input[type="password"]:focus {
   border-top: 1px solid var(--border-color);
   background: rgba(12, 14, 20, 0.4);
 }
+
