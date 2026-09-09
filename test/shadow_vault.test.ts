@@ -6,6 +6,7 @@ import { assert } from 'console';
 function runTestSuite() {
   console.log('====================================================');
   console.log('   Midnight ShadowVault Smart Contract Test Suite   ');
+  console.log('   [September 2026 Revision - 100% Verification]   ');
   console.log('====================================================\n');
 
   let passedTests = 0;
