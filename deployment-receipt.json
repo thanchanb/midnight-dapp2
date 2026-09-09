@@ -5,7 +5,7 @@
   "blockNumber": 1048592,
   "networkId": "Undeployed",
   "network": "Midnight Preprod Testnet",
-  "deployedAt": "2026-08-14T09:32:25.928Z",
+  "deployedAt": "2026-09-09T23:57:02.247Z",
   "circuits": [
     "incrementCounter",
     "initializeVault",
