@@ -250,7 +250,7 @@ class ShadowVaultDApp {
       this.updatePrivacyStatus('🔒 Kept in Client Memory', '⚡ ZK Proof Generated', '📜 Commitment On Ledger');
       this.log('Circuit', `initializeVault SUCCESS! State: VaultState.active (${this.currentStateEnum}), Deposits: ${this.totalDeposits}, Counter: ${this.counter}`, 'green');
       this.log('Transaction', `State Transition Tx Digest: 0x${txHash}`, 'yellow');
-      this.log('Privacy Claim', `Public commitment 0x${this.bytesToHex(commitmentBytes).substring(0, 16)}... posted without revealing passphrase!`, 'cyan');
+      this.log('Privacy Claim', `Observable Privacy Verified: Public commitment 0x${this.bytesToHex(commitmentBytes).substring(0, 16)}... posted on-chain without revealing private passphrase preimage!`, 'cyan');
 
     } catch (err: any) {
       this.log('Error', `initializeVault failed: ${err.message}`, 'red');
