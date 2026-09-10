@@ -1,6 +1,8 @@
 # 📜 Product Proposal: ShadowVault Sealed-Bid Auction & Confidential Escrow Protocol
 
-> **Midnight Blockchain Level 3 Idea List Selection**: *Option 5 — Sealed-Bid Auction (Private bids, verifiable winner)*
+[![September 2026 Revision](https://img.shields.io/badge/Proposal--Status-Approved--Idea--Selection-00e676?style=for-the-badge&logo=github)](https://github.com/thanchanb/midnight-dapp2)
+
+> **Midnight Blockchain Level 3 Idea List Selection**: *Option 5 — Sealed-Bid Auction & Confidential Escrow Protocol (Private bids, verifiable winner)*
 
 ---
 
