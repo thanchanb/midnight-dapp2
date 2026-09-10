@@ -8,7 +8,7 @@ on:
 
 jobs:
   ci-build-and-test:
-    name: Compact Circuit Compilation, 7-Stage Test Suite & Production UI Build
+    name: Level 3 First Quarter - Compact Compilation, 7-Stage Test Suite & UI Build
     runs-on: ubuntu-latest
 
     steps:
