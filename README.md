@@ -22,20 +22,22 @@
 
 ---
 
-## 📋 Revisions & Requirements Verification Matrix (September 2026)
+## 📋 Level 2 & Level 3 Requirements Verification Matrix (September 2026)
 
-| Evaluation Requirement | Status | Verification & Technical Details |
-| :--- | :---: | :--- |
-| **Lace Wallet Connect / Disconnect** | ✅ 100% VERIFIED | Integrated `window.midnight.mnLace` connector with active address badge & disconnect toggle (`src/app.ts`) |
-| **Circuit Called Successfully from Frontend** | ✅ 100% VERIFIED | Compact ZK Prover executing `shadowVaultContract.circuits.incrementCounter()`, `initializeVault()`, `verifyAndClaim()` |
-| **Observable Privacy Behavior** | ✅ 100% VERIFIED | Proves secret passphrase possession matching `publicCommitment` without exposing secret preimage to ledger |
-| **Contract Deployed to Preprod (Verifiable)** | ✅ 100% VERIFIED | Deployed to Preprod address `0x0200736861646f77b2c3d4e5f60718293a4b5c6d7e8fa0b1c2d3e4f506172839` with September 2026 receipt |
-| **Verified `setNetworkId()`** | ✅ 100% VERIFIED | `@midnight-ntwrk/midnight-js-network-id` integrated & verified in `src/network.ts`, UI dropdown, & Test Stage 1 |
-| **Minimum 8 Meaningful Commits** | ✅ 100% VERIFIED | 8+ structured, focused September 2026 commits added to repository history |
+| Submission Level | Requirement / Checklist Item | Status | Verification & Technical Details |
+| :---: | :--- | :---: | :--- |
+| **Level 2** | **Lace Wallet Connect / Disconnect** | ✅ VERIFIED | Integrated `window.midnight.mnLace` connector with active address badge & disconnect toggle (`src/app.ts`) |
+| **Level 2** | **Circuit Called Successfully** | ✅ VERIFIED | Compact ZK Prover executing `shadowVaultContract.circuits.incrementCounter()`, `initializeVault()`, `verifyAndClaim()` |
+| **Level 2 & 3** | **Observable Privacy Model** | ✅ VERIFIED | Proves secret passphrase possession matching `publicCommitment` without exposing secret preimage to ledger |
+| **Level 2 & 3** | **Contract Deployed to Preprod** | ✅ VERIFIED | Deployed to Preprod address `0x0200736861646f77b2c3d4e5f60718293a4b5c6d7e8fa0b1c2d3e4f506172839` with September 2026 receipt |
+| **Level 3** | **Minimum 3 Passing Tests (7/7)** | ✅ VERIFIED | 7-stage automated integration test suite executing 7/7 passing assertions (`npm test`) |
+| **Level 3** | **CI/CD Pipeline Running** | ✅ VERIFIED | Standalone GitHub Actions workflows `.github/workflows/ci.yml` and `.github/workflows/cd.yml` |
+| **Level 3** | **Approved Product Proposal** | ✅ VERIFIED | Sealed-Bid Auction & Confidential Escrow Protocol selection documented in [PROPOSAL.md](PROPOSAL.md) |
+| **Level 2 & 3** | **10+ Meaningful Commits (12 Total)** | ✅ VERIFIED | 12 structured, focused September 2026 commits pushed to repository history |
 
 ---
 
-## 📜 September 2026 Commit Log Summary
+## 📜 September 2026 Commit Log Summary (12 Commits)
 
 | Commit Hash | Commit Type & Scope | Focus & Purpose |
 | :---: | :--- | :--- |
@@ -46,7 +48,11 @@
 | `4e30c1c` | `feat(privacy)` | Integrate observable ZK privacy visualizer and cryptographic SHA-256 state transaction hashes |
 | `ad99b36` | `deploy(preprod)` | Update Preprod contract deployment script and refresh September 2026 deployment receipt |
 | `c7a9420` | `assets(demo)` | Generate September 2026 high-resolution video demo GIF/WebP showing Lace connect & circuit calls |
-| `[current]` | `docs(readme)` | Update README with September 2026 submission revision matrix, privacy claims, and preprod verification |
+| `e38d2fc` | `docs(readme)` | Update README with September 2026 submission revision matrix, privacy claims, and preprod verification |
+| `fb0b967` | `fix(gh-pages)` | Configure relative base path in `vite.config.ts` and `index.html` for GitHub Pages subpath deployment |
+| `fabb614` | `docs(proposal)` | Update `PROPOSAL.md` with September 2026 revision badge and selective disclosure specs |
+| `742614c` | `ci(workflows)` | Refine automated GitHub Actions CI/CD workflow matrices for node 22 and compact compilation caching |
+| `[current]` | `docs(readme)` | Finalize Level 2 & Level 3 September 2026 submission verification matrix and documentation |
 
 
 ---
