@@ -1,4 +1,5 @@
 pragma language_version >= 0.14.0;
+import CompactStandardLibrary;
 
 // ShadowVault: Privacy-Preserving Shielded Escrow & ZK Secret Proof Protocol
 export enum VaultState { uninitialized, active, claimed, revoked }
@@ -35,9 +36,9 @@ export circuit verifyAndClaim(): [] {
     assert(state == VaultState.active, "Vault must be active to claim");
     const secret = secretWitness();
     const salt = userSalt();
-    const publicSecret = disclose(secret);
-    const publicSalt = disclose(salt);
-    lastDisclosedHash = publicSecret;
+    const computedCommitment = persistentHash<Vector<2, Bytes<32>>>([secret, salt]);
+    assert(computedCommitment == publicCommitment, "Invalid secret passphrase: preimage hash does not match public commitment");
+    lastDisclosedHash = disclose(computedCommitment);
     state = VaultState.claimed;
     counter = (counter + 1) as Uint<64>;
 }

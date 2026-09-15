@@ -25,6 +25,8 @@ function runTestSuite() {
     }
   }
 
+  const dummyCoinPublicKey = '00'.repeat(32);
+
   // Define Witness Implementations (Private State & Proof inputs)
   const mockSecretWitness = new Uint8Array(32).fill(0xab);
   const mockUserSalt = new Uint8Array(32).fill(0xcd);
@@ -48,9 +50,6 @@ function runTestSuite() {
 
     setNetworkId(NetworkId.TestNet);
     assert(getNetworkId() === 'TestNet', 'setNetworkId(NetworkId.TestNet) must update network identifier');
-
-    // Reset to Undeployed for testing
-    setNetworkId(NetworkId.Undeployed);
   });
 
   test('2. Contract Instantiation & Circuit Binding Exports', () => {
@@ -62,12 +61,12 @@ function runTestSuite() {
   });
 
   test('3. Real Circuit Execution: incrementCounter() State Mutation', () => {
-    const constructorContext = compactRuntime.createConstructorContext({});
+    const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
     const initStateResult = shadowVaultContract.initialState(constructorContext);
     
     const circuitCtxCounter = compactRuntime.createCircuitContext(
       compactRuntime.dummyContractAddress(),
-      new Uint8Array(32),
+      dummyCoinPublicKey,
       initStateResult.currentContractState.data,
       {}
     );
@@ -87,12 +86,12 @@ function runTestSuite() {
   });
 
   test('5. Full Contract Lifecycle: Initialize -> Active Ledger State & Counter', () => {
-    const constructorContext = compactRuntime.createConstructorContext({});
+    const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
     const initStateResult = shadowVaultContract.initialState(constructorContext);
     
     const circuitCtxInit = compactRuntime.createCircuitContext(
       compactRuntime.dummyContractAddress(),
-      new Uint8Array(32),
+      dummyCoinPublicKey,
       initStateResult.currentContractState.data,
       {}
     );
@@ -113,25 +112,30 @@ function runTestSuite() {
   });
 
   test('6. Full Contract Lifecycle: VerifyAndClaim Private Witness Execution', () => {
-    const constructorContext = compactRuntime.createConstructorContext({});
+    const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
     const initStateResult = shadowVaultContract.initialState(constructorContext);
     
     const circuitCtxInit = compactRuntime.createCircuitContext(
       compactRuntime.dummyContractAddress(),
-      new Uint8Array(32),
+      dummyCoinPublicKey,
       initStateResult.currentContractState.data,
       {}
     );
 
+    const validCommitment = compactRuntime.persistentHash(
+      new compactRuntime.CompactTypeVector(2, new compactRuntime.CompactTypeBytes(32)),
+      [mockSecretWitness, mockUserSalt]
+    );
+
     const initResult = shadowVaultContract.circuits.initializeVault(
       circuitCtxInit,
-      mockCommitment,
+      validCommitment,
       mockOwnerId
     );
 
     const circuitCtxClaim = compactRuntime.createCircuitContext(
       compactRuntime.dummyContractAddress(),
-      new Uint8Array(32),
+      dummyCoinPublicKey,
       initResult.context.currentQueryContext.state,
       initResult.context.currentPrivateState
     );
@@ -146,25 +150,30 @@ function runTestSuite() {
   });
 
   test('7. Vault Revocation & State Guards Assertion', () => {
-    const constructorContext = compactRuntime.createConstructorContext({});
+    const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
     const initStateResult = shadowVaultContract.initialState(constructorContext);
     
     const circuitCtxInit = compactRuntime.createCircuitContext(
       compactRuntime.dummyContractAddress(),
-      new Uint8Array(32),
+      dummyCoinPublicKey,
       initStateResult.currentContractState.data,
       {}
     );
 
+    const validCommitment = compactRuntime.persistentHash(
+      new compactRuntime.CompactTypeVector(2, new compactRuntime.CompactTypeBytes(32)),
+      [mockSecretWitness, mockUserSalt]
+    );
+
     const initResult = shadowVaultContract.circuits.initializeVault(
       circuitCtxInit,
-      mockCommitment,
+      validCommitment,
       mockOwnerId
     );
 
     const circuitCtxRevoke = compactRuntime.createCircuitContext(
       compactRuntime.dummyContractAddress(),
-      new Uint8Array(32),
+      dummyCoinPublicKey,
       initResult.context.currentQueryContext.state,
       initResult.context.currentPrivateState
     );
@@ -173,6 +182,56 @@ function runTestSuite() {
     const ledgerStateAfterRevoke = ledger(revokeResult.context.currentQueryContext.state);
     assert(ledgerStateAfterRevoke.state === VaultState.revoked, 'Vault state must be revoked (3)');
     assert(ledgerStateAfterRevoke.counter === 2n, 'counter must increment to 2n on revoke');
+  });
+
+  test('8. Preimage Knowledge Verification: Invalid witness fails verifyAndClaim assertion', () => {
+    const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
+    const initStateResult = shadowVaultContract.initialState(constructorContext);
+    
+    const circuitCtxInit = compactRuntime.createCircuitContext(
+      compactRuntime.dummyContractAddress(),
+      dummyCoinPublicKey,
+      initStateResult.currentContractState.data,
+      {}
+    );
+
+    // Initialize vault with commitment for mockSecretWitness + mockUserSalt
+    const validCommitment = compactRuntime.persistentHash(
+      new compactRuntime.CompactTypeVector(2, new compactRuntime.CompactTypeBytes(32)),
+      [mockSecretWitness, mockUserSalt]
+    );
+
+    const initResult = shadowVaultContract.circuits.initializeVault(
+      circuitCtxInit,
+      validCommitment,
+      mockOwnerId
+    );
+
+    // Create contract instance with WRONG witness
+    const wrongWitnesses = {
+      secretWitness: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
+        return [context.privateState, new Uint8Array(32).fill(0x99)]; // WRONG SECRET
+      },
+      userSalt: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
+        return [context.privateState, mockUserSalt];
+      }
+    };
+    const wrongContract = new Contract(wrongWitnesses);
+
+    const circuitCtxClaim = compactRuntime.createCircuitContext(
+      compactRuntime.dummyContractAddress(),
+      dummyCoinPublicKey,
+      initResult.context.currentQueryContext.state,
+      initResult.context.currentPrivateState
+    );
+
+    let failedAsExpected = false;
+    try {
+      wrongContract.circuits.verifyAndClaim(circuitCtxClaim);
+    } catch (err: any) {
+      failedAsExpected = err.message.includes('preimage hash does not match public commitment') || err.message.includes('failed assert');
+    }
+    assert(failedAsExpected, 'verifyAndClaim MUST reject invalid passphrase witness in zero-knowledge circuit!');
   });
 
   console.log('\n----------------------------------------------------');

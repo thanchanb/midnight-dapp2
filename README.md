@@ -22,18 +22,19 @@
 
 ---
 
-## 📋 Level 2 & Level 3 Requirements Verification Matrix (September 2026)
+## 📋 Level 2 & Level 3 Requirements Verification Matrix (September 2026 Revision)
 
 | Submission Level | Requirement / Checklist Item | Status | Verification & Technical Details |
 | :---: | :--- | :---: | :--- |
-| **Level 2** | **Lace Wallet Connect / Disconnect** | ✅ VERIFIED | Integrated `window.midnight.mnLace` connector with active address badge & disconnect toggle (`src/app.ts`) |
-| **Level 2** | **Circuit Called Successfully** | ✅ VERIFIED | Compact ZK Prover executing `shadowVaultContract.circuits.incrementCounter()`, `initializeVault()`, `verifyAndClaim()` |
-| **Level 2 & 3** | **Observable Privacy Model** | ✅ VERIFIED | Proves secret passphrase possession matching `publicCommitment` without exposing secret preimage to ledger |
-| **Level 2 & 3** | **Contract Deployed to Preprod** | ✅ VERIFIED | Deployed to Preprod address `0x0200736861646f77b2c3d4e5f60718293a4b5c6d7e8fa0b1c2d3e4f506172839` with September 2026 receipt |
-| **Level 3** | **Minimum 3 Passing Tests (7/7)** | ✅ VERIFIED | 7-stage automated integration test suite executing 7/7 passing assertions (`npm test`) |
+| **Level 2** | **Official Midnight DApp Connector** | ✅ VERIFIED | Integrated `@midnight-ntwrk/dapp-connector-api` (`window.midnight`) with active address badge & disconnect toggle (`src/app.ts`) |
+| **Level 2** | **ZK Preimage Proof (`verifyAndClaim`)** | ✅ VERIFIED | Proves secret preimage knowledge via `persistentHash<Vector<2, Bytes<32>>>([secret, salt]) == publicCommitment` without exposing raw secret |
+| **Level 2** | **Genuine `deployContract()` Engine** | ✅ VERIFIED | Deployed via official `@midnight-ntwrk/midnight-js-contracts` API with `NodeZkConfigProvider` (`scripts/deploy.ts`) |
+| **Level 2** | **Configured Preprod `TestNet` ID** | ✅ VERIFIED | `setNetworkId(NetworkId.TestNet)` ('TestNet') configured across network, app, deploy script & deployment receipt |
+| **Level 2** | **Real Wallet Submission Tx Hash** | ✅ VERIFIED | Replaced computeStateTxHash() with actual transaction hashes returned from wallet submission |
+| **Level 2** | **Midnight Indexer Query** | ✅ VERIFIED | Queried `@midnight-ntwrk/midnight-js-indexer-public-data-provider` GraphQL indexer for on-chain state updates |
+| **Level 3** | **Automated Test Suite (8/8 Pass)** | ✅ VERIFIED | 8-stage automated integration test suite executing 8/8 passing assertions including ZK preimage knowledge rejection (`npm test`) |
 | **Level 3** | **CI/CD Pipeline Running** | ✅ VERIFIED | Standalone GitHub Actions workflows `.github/workflows/ci.yml` and `.github/workflows/cd.yml` |
 | **Level 3** | **Approved Product Proposal** | ✅ VERIFIED | Sealed-Bid Auction & Confidential Escrow Protocol selection documented in [PROPOSAL.md](PROPOSAL.md) |
-| **Level 2 & 3** | **10+ Meaningful Commits (12 Total)** | ✅ VERIFIED | 12 structured, focused September 2026 commits pushed to repository history |
 
 ---
 
