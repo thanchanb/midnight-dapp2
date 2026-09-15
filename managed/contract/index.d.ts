@@ -6,6 +6,7 @@ export enum VaultState { uninitialized = 0, active = 1, claimed = 2, revoked = 3
 export type Witnesses<PS> = {
   secretWitness(context: __compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array];
   userSalt(context: __compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array];
+  ownerKey(context: __compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array];
 }
 
 export type ImpureCircuits<PS> = {
@@ -44,6 +45,7 @@ export type Ledger = {
   readonly owner: Uint8Array;
   readonly totalDeposits: bigint;
   readonly counter: bigint;
+  readonly nullifierHash: Uint8Array;
   readonly lastDisclosedHash: Uint8Array;
 }
 

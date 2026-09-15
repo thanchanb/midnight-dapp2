@@ -52,6 +52,7 @@ async function deployShadowVault() {
   const dummyWitnesses = {
     secretWitness: <PS>(context: any): [PS, Uint8Array] => [context.privateState, new Uint8Array(32)],
     userSalt: <PS>(context: any): [PS, Uint8Array] => [context.privateState, new Uint8Array(32)],
+    ownerKey: <PS>(context: any): [PS, Uint8Array] => [context.privateState, new Uint8Array(32)],
   };
   const shadowVault = new Contract(dummyWitnesses);
   const coinPublicKey = '00'.repeat(32);

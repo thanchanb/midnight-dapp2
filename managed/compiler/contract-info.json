@@ -84,6 +84,15 @@
         "type-name": "Bytes",
         "length": 32
       }
+    },
+    {
+      "name": "ownerKey",
+      "arguments": [
+      ],
+      "result type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
     }
   ],
   "contracts": [
@@ -146,8 +155,18 @@
       }
     },
     {
-      "name": "lastDisclosedHash",
+      "name": "nullifierHash",
       "index": 5,
+      "exported": true,
+      "storage": "Cell",
+      "type": {
+        "type-name": "Bytes",
+        "length": 32
+      }
+    },
+    {
+      "name": "lastDisclosedHash",
+      "index": 6,
       "exported": true,
       "storage": "Cell",
       "type": {

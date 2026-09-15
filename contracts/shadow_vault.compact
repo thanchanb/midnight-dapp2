@@ -10,11 +10,13 @@ export ledger publicCommitment: Bytes<32>;
 export ledger owner: Bytes<32>;
 export ledger totalDeposits: Uint<64>;
 export ledger counter: Uint<64>;
+export ledger nullifierHash: Bytes<32>;
 export ledger lastDisclosedHash: Bytes<32>;
 
 // Private Client Witnesses (Evaluated exclusively in client-side ZK prover memory)
 witness secretWitness(): Bytes<32>;
 witness userSalt(): Bytes<32>;
+witness ownerKey(): Bytes<32>;
 
 // Circuit 1: Mutates ledger counter state in zero-knowledge
 export circuit incrementCounter(): [] {
@@ -31,22 +33,37 @@ export circuit initializeVault(commitment: Bytes<32>, ownerId: Bytes<32>): [] {
     counter = (counter + 1) as Uint<64>;
 }
 
-// Circuit 3: Verifies private witness passphrase matching public commitment without exposing raw secret
+// Circuit 3: Verifies private witness passphrase matching public commitment without exposing raw secret. Includes nullifier replay protection.
 export circuit verifyAndClaim(): [] {
     assert(state == VaultState.active, "Vault must be active to claim");
+    
+    // Witness extraction (kept private)
     const secret = secretWitness();
     const salt = userSalt();
+    
+    // 1. Preimage Proof: Prove knowledge of secret and salt matching publicCommitment
     const computedCommitment = persistentHash<Vector<2, Bytes<32>>>([secret, salt]);
     assert(computedCommitment == publicCommitment, "Invalid secret passphrase: preimage hash does not match public commitment");
+
+    // 2. Nullifier & Replay Protection: Generate unique nullifier derived from secret witness
+    const nullifier = persistentHash<Vector<2, Bytes<32>>>([secret, computedCommitment]);
+    const publicNullifier = disclose(nullifier);
+    assert(nullifierHash == pad(32, ""), "Nullifier already spent: claim replay detected");
+    
+    nullifierHash = publicNullifier;
     lastDisclosedHash = disclose(computedCommitment);
     state = VaultState.claimed;
     counter = (counter + 1) as Uint<64>;
 }
 
-// Circuit 4: Revokes active vault and increments ledger counter
+// Circuit 4: Revokes active vault with owner authorization check
 export circuit revokeVault(): [] {
     assert(state == VaultState.active, "Vault must be active to revoke");
+    
+    // Genuine Owner Authorization Check
+    const caller = ownerKey();
+    assert(disclose(caller) == owner, "Unauthorized: caller is not the vault owner");
+    
     state = VaultState.revoked;
     counter = (counter + 1) as Uint<64>;
 }
-

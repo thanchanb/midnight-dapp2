@@ -6,7 +6,7 @@ import { assert } from 'console';
 function runTestSuite() {
   console.log('====================================================');
   console.log('   Midnight ShadowVault Smart Contract Test Suite   ');
-  console.log('   [September 2026 Revision - 100% Verification]   ');
+  console.log('   [Level 3 Revision - 100% Verification]           ');
   console.log('====================================================\n');
 
   let passedTests = 0;
@@ -30,7 +30,6 @@ function runTestSuite() {
   // Define Witness Implementations (Private State & Proof inputs)
   const mockSecretWitness = new Uint8Array(32).fill(0xab);
   const mockUserSalt = new Uint8Array(32).fill(0xcd);
-  const mockCommitment = new Uint8Array(32).fill(0x12);
   const mockOwnerId = new Uint8Array(32).fill(0x34);
 
   const witnesses = {
@@ -39,6 +38,9 @@ function runTestSuite() {
     },
     userSalt: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
       return [context.privateState, mockUserSalt];
+    },
+    ownerKey: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
+      return [context.privateState, mockOwnerId];
     }
   };
 
@@ -96,9 +98,14 @@ function runTestSuite() {
       {}
     );
 
+    const validCommitment = compactRuntime.persistentHash(
+      new compactRuntime.CompactTypeVector(2, new compactRuntime.CompactTypeBytes(32)),
+      [mockSecretWitness, mockUserSalt]
+    );
+
     const initResult = shadowVaultContract.circuits.initializeVault(
       circuitCtxInit,
-      mockCommitment,
+      validCommitment,
       mockOwnerId
     );
 
@@ -111,7 +118,7 @@ function runTestSuite() {
     assert(ledgerStateAfterInit.publicCommitment.length === 32, 'publicCommitment stored correctly');
   });
 
-  test('6. Full Contract Lifecycle: VerifyAndClaim Private Witness Execution', () => {
+  test('6. Full Contract Lifecycle: VerifyAndClaim Private Witness Execution & Nullifier Generation', () => {
     const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
     const initStateResult = shadowVaultContract.initialState(constructorContext);
     
@@ -146,10 +153,11 @@ function runTestSuite() {
     const ledgerStateAfterClaim = ledger(claimResult.context.currentQueryContext.state);
     assert(ledgerStateAfterClaim.state === VaultState.claimed, 'Vault state must transition to claimed (2)');
     assert(ledgerStateAfterClaim.counter === 2n, 'counter must increment to 2n on claim');
-    assert(ledgerStateAfterClaim.lastDisclosedHash.length === 32, 'Disclosed witness stored on ledger');
+    assert(ledgerStateAfterClaim.nullifierHash.length === 32, 'Nullifier hash published on ledger for replay protection');
+    assert(ledgerStateAfterClaim.lastDisclosedHash.length === 32, 'Disclosed commitment stored on ledger');
   });
 
-  test('7. Vault Revocation & State Guards Assertion', () => {
+  test('7. Genuine Owner Authorization: Authorized Owner revokes vault', () => {
     const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
     const initStateResult = shadowVaultContract.initialState(constructorContext);
     
@@ -195,7 +203,6 @@ function runTestSuite() {
       {}
     );
 
-    // Initialize vault with commitment for mockSecretWitness + mockUserSalt
     const validCommitment = compactRuntime.persistentHash(
       new compactRuntime.CompactTypeVector(2, new compactRuntime.CompactTypeBytes(32)),
       [mockSecretWitness, mockUserSalt]
@@ -214,6 +221,9 @@ function runTestSuite() {
       },
       userSalt: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
         return [context.privateState, mockUserSalt];
+      },
+      ownerKey: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
+        return [context.privateState, mockOwnerId];
       }
     };
     const wrongContract = new Contract(wrongWitnesses);
@@ -232,6 +242,54 @@ function runTestSuite() {
       failedAsExpected = err.message.includes('preimage hash does not match public commitment') || err.message.includes('failed assert');
     }
     assert(failedAsExpected, 'verifyAndClaim MUST reject invalid passphrase witness in zero-knowledge circuit!');
+  });
+
+  test('9. Owner Authorization Guard: Non-owner caller fails revokeVault() assertion', () => {
+    const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
+    const initStateResult = shadowVaultContract.initialState(constructorContext);
+    
+    const circuitCtxInit = compactRuntime.createCircuitContext(
+      compactRuntime.dummyContractAddress(),
+      dummyCoinPublicKey,
+      initStateResult.currentContractState.data,
+      {}
+    );
+
+    const validCommitment = compactRuntime.persistentHash(
+      new compactRuntime.CompactTypeVector(2, new compactRuntime.CompactTypeBytes(32)),
+      [mockSecretWitness, mockUserSalt]
+    );
+
+    const initResult = shadowVaultContract.circuits.initializeVault(
+      circuitCtxInit,
+      validCommitment,
+      mockOwnerId // Bound on-chain owner
+    );
+
+    // Create contract instance with UNAUTHORIZED non-owner key
+    const unauthorizedWitnesses = {
+      secretWitness: witnesses.secretWitness,
+      userSalt: witnesses.userSalt,
+      ownerKey: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
+        return [context.privateState, new Uint8Array(32).fill(0x77)]; // WRONG OWNER KEY
+      }
+    };
+    const unauthorizedContract = new Contract(unauthorizedWitnesses);
+
+    const circuitCtxRevoke = compactRuntime.createCircuitContext(
+      compactRuntime.dummyContractAddress(),
+      dummyCoinPublicKey,
+      initResult.context.currentQueryContext.state,
+      initResult.context.currentPrivateState
+    );
+
+    let failedAsExpected = false;
+    try {
+      unauthorizedContract.circuits.revokeVault(circuitCtxRevoke);
+    } catch (err: any) {
+      failedAsExpected = err.message.includes('caller is not the vault owner') || err.message.includes('failed assert');
+    }
+    assert(failedAsExpected, 'revokeVault MUST reject non-owner caller key in zero-knowledge circuit!');
   });
 
   console.log('\n----------------------------------------------------');

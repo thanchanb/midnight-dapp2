@@ -26,6 +26,7 @@ class ShadowVaultDApp {
   private currentStateEnum: VaultState = VaultState.uninitialized;
   private totalDeposits: bigint = 0n;
   private publicCommitment: Uint8Array = new Uint8Array(32);
+  private nullifierHash: Uint8Array = new Uint8Array(32);
   private lastDisclosedHash: Uint8Array = new Uint8Array(32);
   private contractAddress: string = '0x0200736861646f77b2c3d4e5f60718293a4b5c6d7e8fa0b1c2d3e4f506172839';
 
@@ -47,6 +48,10 @@ class ShadowVaultDApp {
         const saltHex = (document.getElementById('claimSalt') as HTMLInputElement)?.value || '';
         const saltBytes = this.hexToBytes(saltHex, 32);
         return [context.privateState, saltBytes];
+      },
+      ownerKey: <PS>(context: compactRuntime.WitnessContext<any, PS>): [PS, Uint8Array] => {
+        const ownerInput = (document.getElementById('initOwnerId') as HTMLInputElement)?.value || '0x0200736861646f77b2c3d4e5f60718293a4b5c6d7e8fa0b1c2d3e4f506172839';
+        return [context.privateState, this.hexToBytes(ownerInput, 32)];
       }
     };
 
@@ -77,6 +82,7 @@ class ShadowVaultDApp {
       this.counter = initialLedger.counter || 0n;
       this.currentStateEnum = initialLedger.state;
       this.totalDeposits = initialLedger.totalDeposits;
+      this.nullifierHash = initialLedger.nullifierHash || new Uint8Array(32);
 
       this.updateLedgerUI();
       this.log('System', `Verified setNetworkId('${activeNetwork}'). Initialized ShadowVault Compact smart contract.`, 'green');
@@ -219,13 +225,15 @@ class ShadowVaultDApp {
   private async queryIndexerState() {
     try {
       if (this.publicDataProvider?.queryContractState) {
-        const onChainState = await this.publicDataProvider.queryContractState(this.contractAddress);
+        const cleanAddr = this.contractAddress.replace(/^0x/, '');
+        const onChainState = await this.publicDataProvider.queryContractState(cleanAddr);
         if (onChainState?.data) {
           const indexerLedger = ledger(onChainState.data);
           this.counter = indexerLedger.counter;
           this.currentStateEnum = indexerLedger.state;
           this.totalDeposits = indexerLedger.totalDeposits;
           this.publicCommitment = indexerLedger.publicCommitment;
+          this.nullifierHash = indexerLedger.nullifierHash;
           this.lastDisclosedHash = indexerLedger.lastDisclosedHash;
           this.updateLedgerUI();
           this.log('Indexer', `Queried Midnight Indexer: Ledger Counter=${this.counter}, State=${VaultState[this.currentStateEnum]}`, 'cyan');
@@ -337,7 +345,7 @@ class ShadowVaultDApp {
     }
   }
 
-  // 4. Real Circuit Execution: Verify and Claim (ZK Preimage Proof)
+  // 4. Real Circuit Execution: Verify and Claim (ZK Preimage Proof & Nullifier Protection)
   public async handleVerifyAndClaim() {
     const passphraseInput = (document.getElementById('claimPassphrase') as HTMLInputElement).value;
 
@@ -346,7 +354,7 @@ class ShadowVaultDApp {
       return;
     }
 
-    this.log('Circuit', 'Executing verifyAndClaim ZK circuit proving knowledge of secret preimage...', 'cyan');
+    this.log('Circuit', 'Executing verifyAndClaim ZK circuit proving knowledge of secret preimage & nullifier replay protection...', 'cyan');
     this.updatePrivacyStatus('Evaluating Witness...', 'Proving Passphrase Hash...', 'Updating State...');
 
     try {
@@ -357,7 +365,7 @@ class ShadowVaultDApp {
         this.currentPrivateState
       );
 
-      // Evaluates circuit 3: persistentHash([secret, salt]) == publicCommitment
+      // Evaluates circuit 3: persistentHash([secret, salt]) == publicCommitment + nullifier verification
       const result = this.shadowVaultContract.circuits.verifyAndClaim(circuitCtxClaim);
 
       this.currentContractState = result.context.currentQueryContext.state;
@@ -366,6 +374,7 @@ class ShadowVaultDApp {
       const ledgerState = ledger(result.context.currentQueryContext.state);
       this.currentStateEnum = ledgerState.state;
       this.totalDeposits = ledgerState.totalDeposits;
+      this.nullifierHash = ledgerState.nullifierHash;
       this.lastDisclosedHash = ledgerState.lastDisclosedHash;
       this.counter = ledgerState.counter;
 
@@ -377,18 +386,18 @@ class ShadowVaultDApp {
 
       this.updateLedgerUI();
       this.updatePrivacyStatus('🔒 Unexposed Passphrase', '⚡ Verified Zero-Knowledge', '📜 State Claimed (2)');
-      this.log('Circuit', `verifyAndClaim SUCCESS! Proved knowledge of preimage in ZK! Vault State: VaultState.claimed (${this.currentStateEnum}), Counter: ${this.counter}`, 'green');
+      this.log('Circuit', `verifyAndClaim SUCCESS! Proved knowledge of preimage in ZK without exposing secretWitness! Nullifier: 0x${this.bytesToHex(this.nullifierHash).substring(0, 16)}...`, 'green');
       this.log('Transaction', `State Transition Tx Digest: 0x${txHash}`, 'yellow');
-      this.log('Privacy Claim', `Zero-Knowledge Verification Passed: persistentHash([secret, salt]) matched on-chain commitment without exposing raw secret!`, 'cyan');
+      this.log('Replay Guard', `Nullifier Replay Protection Activated: nullifierHash published on ledger prevents double-claiming`, 'cyan');
 
     } catch (err: any) {
       this.log('Error', `verifyAndClaim failed: ${err.message}`, 'red');
     }
   }
 
-  // 5. Real Circuit Execution: Revoke Vault
+  // 5. Real Circuit Execution: Revoke Vault (Owner Authorized)
   public async handleRevokeVault() {
-    this.log('Circuit', 'Executing revokeVault circuit...', 'cyan');
+    this.log('Circuit', 'Executing revokeVault circuit with owner authorization witness check...', 'cyan');
     try {
       const circuitCtxRevoke = compactRuntime.createCircuitContext(
         compactRuntime.dummyContractAddress(),
@@ -408,7 +417,7 @@ class ShadowVaultDApp {
       await this.queryIndexerState();
 
       this.updateLedgerUI();
-      this.log('Circuit', `revokeVault SUCCESS! Vault State: VaultState.revoked (${this.currentStateEnum}), Counter: ${this.counter}`, 'green');
+      this.log('Circuit', `revokeVault SUCCESS! Owner authorization verified! Vault State: VaultState.revoked (${this.currentStateEnum}), Counter: ${this.counter}`, 'green');
       this.log('Transaction', `State Transition Tx Digest: 0x${txHash}`, 'yellow');
 
     } catch (err: any) {

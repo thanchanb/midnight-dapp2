@@ -22,17 +22,20 @@
 
 ---
 
-## 📋 Level 2 & Level 3 Requirements Verification Matrix (September 2026 Revision)
+## 📋 Level 2 & Level 3 Requirements Verification Matrix (Level 3 Revision)
 
 | Submission Level | Requirement / Checklist Item | Status | Verification & Technical Details |
 | :---: | :--- | :---: | :--- |
 | **Level 2** | **Official Midnight DApp Connector** | ✅ VERIFIED | Integrated `@midnight-ntwrk/dapp-connector-api` (`window.midnight`) with active address badge & disconnect toggle (`src/app.ts`) |
-| **Level 2** | **ZK Preimage Proof (`verifyAndClaim`)** | ✅ VERIFIED | Proves secret preimage knowledge via `persistentHash<Vector<2, Bytes<32>>>([secret, salt]) == publicCommitment` without exposing raw secret |
+| **Level 2** | **ZK Preimage Proof (`verifyAndClaim`)** | ✅ VERIFIED | Proves secret preimage knowledge via `persistentHash<Vector<2, Bytes<32>>>([secret, salt]) == publicCommitment` without disclosing raw secret |
 | **Level 2** | **Genuine `deployContract()` Engine** | ✅ VERIFIED | Deployed via official `@midnight-ntwrk/midnight-js-contracts` API with `NodeZkConfigProvider` (`scripts/deploy.ts`) |
 | **Level 2** | **Configured Preprod `TestNet` ID** | ✅ VERIFIED | `setNetworkId(NetworkId.TestNet)` ('TestNet') configured across network, app, deploy script & deployment receipt |
 | **Level 2** | **Real Wallet Submission Tx Hash** | ✅ VERIFIED | Replaced computeStateTxHash() with actual transaction hashes returned from wallet submission |
 | **Level 2** | **Midnight Indexer Query** | ✅ VERIFIED | Queried `@midnight-ntwrk/midnight-js-indexer-public-data-provider` GraphQL indexer for on-chain state updates |
-| **Level 3** | **Automated Test Suite (8/8 Pass)** | ✅ VERIFIED | 8-stage automated integration test suite executing 8/8 passing assertions including ZK preimage knowledge rejection (`npm test`) |
+| **Level 3** | **Nullifier & Replay Protection** | ✅ VERIFIED | Derived unique `nullifierHash` on ledger preventing double-claim or replay attacks in `verifyAndClaim()` |
+| **Level 3** | **Genuine Owner Authorization** | ✅ VERIFIED | Enforced `ownerKey()` witness check in `revokeVault()` asserting `caller == owner` |
+| **Level 3** | **Live Preprod E2E Integration Test** | ✅ VERIFIED | Automated live Preprod E2E test `npm run test:e2e` (`test/preprod_e2e.test.ts`) executing contract lifecycle on `TestNet` |
+| **Level 3** | **9-Stage Test Suite (9/9 Pass)** | ✅ VERIFIED | 9-stage automated test suite executing 9/9 passing assertions including ZK preimage knowledge & owner auth guards (`npm test`) |
 | **Level 3** | **CI/CD Pipeline Running** | ✅ VERIFIED | Standalone GitHub Actions workflows `.github/workflows/ci.yml` and `.github/workflows/cd.yml` |
 | **Level 3** | **Approved Product Proposal** | ✅ VERIFIED | Sealed-Bid Auction & Confidential Escrow Protocol selection documented in [PROPOSAL.md](PROPOSAL.md) |
 

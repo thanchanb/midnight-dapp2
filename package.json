@@ -11,6 +11,7 @@
     "compile": "compact compile contracts/shadow_vault.compact managed",
     "build": "tsc",
     "test": "npx tsx test/shadow_vault.test.ts",
+    "test:e2e": "npx tsx test/preprod_e2e.test.ts",
     "deploy": "npx tsx scripts/deploy.ts"
   },
   "keywords": [
