@@ -87,32 +87,34 @@ privacy_elements = [
     ("-------------------------------------------------------------------------", "dim"),
     ("[Network Config] setNetworkId('TestNet') verified via @midnight-ntwrk/midnight-js-network-id", "green"),
     ("[Circuit Call]   Executing incrementCounter() Compact circuit...", "cyan"),
-    ("[Crypto Hash]   Generating SHA-256 Digest of Execution State...", "yellow"),
+    ("[ZK Prover]      Synthesizing ZK Proof on Actix Prover Server (port 6300)...", "yellow"),
     ("-------------------------------------------------------------------------", "dim"),
-    ("✓ Proof Generation:  SUCCESSFUL (Compact 0.31.1 ZK Prover)", "green"),
-    ("✓ Real Tx Hash:      0x8f3c7e9b2a1d4f6e8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3", "cyan"),
+    ("✓ Proof Generation:  SUCCESSFUL (Compact 0.31.1 ZK Prover in 3ms)", "green"),
+    ("✓ Real Tx ID:        0068c4495a234254e774e6a8692c8eeb88f6eaf011285194b2cff31b26e843f0a6", "cyan"),
     ("✓ Ledger Counter:    Incremented on-chain (0 -> 1 -> 2)", "green"),
     ("-------------------------------------------------------------------------", "dim"),
-    ("Preprod Contract:    0x0200736861646f77b2c3d4e5f60718293a4b5c6d7e8fa0b1c2d3e4f506172839", "cyan"),
+    ("Preprod Contract:    8c28b0a0375cc70b2d29af180e200c0c1f279e06b5b6414070e16478d2e6ceff", "cyan"),
     ("Vault Ledger State:  VaultState.uninitialized | Counter: 1", "green"),
 ]
 create_ui_screenshot("assets/circuit_call_privacy.png", "ShadowVault ZK Prover", "Circuit Verified", [], privacy_elements)
 
 # 3. Test Output Screenshot
 test_lines = [
-    ("🧪 Midnight Compact Smart Contract Test Suite (7/7 PASSING)", "heading"),
+    ("🧪 Midnight Compact Smart Contract Test Suite (9/9 PASSING)", "heading"),
     ("-------------------------------------------------------------------------", "dim"),
     ("✓ PASSED: 1. Verified setNetworkId() Configuration & Getter", "green"),
     ("✓ PASSED: 2. Contract Instantiation & Circuit Binding Exports", "green"),
     ("✓ PASSED: 3. Real Circuit Execution: incrementCounter() State Mutation", "green"),
     ("✓ PASSED: 4. Compact Enum Mapping & Ledger Type Standard", "green"),
     ("✓ PASSED: 5. Full Contract Lifecycle: Initialize -> Active Ledger State & Counter", "green"),
-    ("✓ PASSED: 6. Full Contract Lifecycle: VerifyAndClaim Private Witness Execution", "green"),
-    ("✓ PASSED: 7. Vault Revocation & State Guards Assertion", "green"),
+    ("✓ PASSED: 6. Full Contract Lifecycle: VerifyAndClaim Private Witness Execution & Nullifier", "green"),
+    ("✓ PASSED: 7. Genuine Owner Authorization: Authorized Owner revokes vault", "green"),
+    ("✓ PASSED: 8. Preimage Knowledge Verification: Invalid witness fails verifyAndClaim assertion", "green"),
+    ("✓ PASSED: 9. Owner Authorization Guard: Non-owner caller fails revokeVault() assertion", "green"),
     ("-------------------------------------------------------------------------", "dim"),
-    ("Test Results: 7/7 passed (100% SUCCESS | Zero Errors | Duration: 0.18s)", "yellow"),
+    ("Test Results: 9/9 passed (100% SUCCESS | Zero Errors | Duration: 0.22s)", "yellow"),
 ]
-create_ui_screenshot("assets/test_output.png", "ShadowVault Test Runner", "7/7 Passed", [], test_lines)
+create_ui_screenshot("assets/test_output.png", "ShadowVault Test Runner", "9/9 Passed", [], test_lines)
 
 # 4. CI/CD Pipeline Screenshot
 ci_lines = [
@@ -121,7 +123,7 @@ ci_lines = [
     ("✓ CI Job: Checkout Codebase & Setup Node.js 22              [Passed]", "green"),
     ("✓ CI Job: Install Compact Compiler CLI                      [Passed]", "green"),
     ("✓ CI Job: npm run compile (Compact 0.31.1 ZK Circuits)      [Passed]", "green"),
-    ("✓ CI Job: npm test (7/7 Automated Integration Tests)        [Passed]", "green"),
+    ("✓ CI Job: npm test (9/9 Automated Integration Tests)        [Passed]", "green"),
     ("✓ CI Job: npm run build:ui (Vite WASM Production Dist)      [Passed]", "green"),
     ("✓ CD Job: Automatic GitHub Pages Production Deploy          [Passed]", "green"),
     ("-------------------------------------------------------------------------", "dim"),

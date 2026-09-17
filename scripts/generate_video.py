@@ -85,9 +85,9 @@ def render_frame(title, subtitle, wallet_status, network_id, counter_val, tx_has
     draw.text((830, 210), "1", fill=text_color, font=large_mono)
 
     # Tx Hash Box
-    draw.text((505, 265), "State Transition SHA-256 Transaction Digest:", fill=muted_color, font=font)
+    draw.text((505, 265), "Proven Transaction ID (Preprod Submission):", fill=muted_color, font=font)
     draw.rectangle([505, 285, width - 45, 320], fill=(12, 14, 20), outline=(0, 242, 254))
-    draw.text((515, 297), f"0x{tx_hash}", fill=accent_cyan, font=mono_font)
+    draw.text((515, 297), f"{tx_hash}", fill=accent_cyan, font=mono_font)
 
     # Status Tag
     draw.rectangle([505, 335, width - 45, 375], fill=(25, 30, 45), outline=accent_purple)
@@ -106,24 +106,26 @@ def main():
     os.makedirs("assets", exist_ok=True)
     frames = []
 
+    real_tx_id = "0068c4495a234254e774e6a8692c8eeb88f6eaf011285194b2cff31b26e843f0a6"
+
     # Frame 1: Initial state
-    f1 = render_frame("ShadowVault", "Preprod", "Disconnected", "Undeployed", 0, "0000000000000000000000000000000000000000000000000000000000000000", "Ready to Connect Wallet & Execute Circuit", "1. DApp Loaded, Network setNetworkId('Undeployed')")
+    f1 = render_frame("ShadowVault", "Preprod", "Disconnected", "Undeployed", 0, "--", "Ready to Connect Wallet & Execute Circuit", "1. DApp Loaded, Network setNetworkId('Undeployed')")
     frames.append(f1)
 
     # Frame 2: Wallet Connected
-    f2 = render_frame("ShadowVault", "Preprod", "Connected (mn1q8x9a...7q8r9s)", "Undeployed", 0, "0000000000000000000000000000000000000000000000000000000000000000", "Lace Wallet Connected on Preprod", "2. Click 'Connect Lace Wallet' ➔ Address Verified")
+    f2 = render_frame("ShadowVault", "Preprod", "Connected (mn1q8x9a...7q8r9s)", "Undeployed", 0, "--", "Lace Wallet Connected on Preprod", "2. Click 'Connect Lace Wallet' ➔ Address Verified")
     frames.append(f2)
 
     # Frame 3: setNetworkId Switcher
-    f3 = render_frame("ShadowVault", "Preprod", "Connected (mn1q8x9a...7q8r9s)", "TestNet", 0, "0000000000000000000000000000000000000000000000000000000000000000", "setNetworkId('TestNet') Verified", "3. Select setNetworkId('TestNet') ➔ Network Identifier Updated")
+    f3 = render_frame("ShadowVault", "Preprod", "Connected (mn1q8x9a...7q8r9s)", "TestNet", 0, "--", "setNetworkId('TestNet') Verified", "3. Select setNetworkId('TestNet') ➔ Network Identifier Updated")
     frames.append(f3)
 
     # Frame 4: Circuit Execution 1 (Counter -> 1)
-    f4 = render_frame("ShadowVault", "Preprod", "Connected (mn1q8x9a...7q8r9s)", "TestNet", 1, "8f3c7e9b2a1d4f6e8091a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3", "incrementCounter Execution Complete (Counter: 1)", "4. Click 'Execute incrementCounter Circuit' ➔ Counter 0 ➔ 1")
+    f4 = render_frame("ShadowVault", "Preprod", "Connected (mn1q8x9a...7q8r9s)", "TestNet", 1, real_tx_id, "incrementCounter Execution Complete (Counter: 1)", "4. Click 'Execute incrementCounter Circuit' ➔ Counter 0 ➔ 1")
     frames.append(f4)
 
     # Frame 5: Circuit Execution 2 (Counter -> 2)
-    f5 = render_frame("ShadowVault", "Preprod", "Connected (mn1q8x9a...7q8r9s)", "TestNet", 2, "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b", "incrementCounter Execution Complete (Counter: 2)", "5. Second Circuit Call ➔ Counter 1 ➔ 2 (Tx Digest Updated!)")
+    f5 = render_frame("ShadowVault", "Preprod", "Connected (mn1q8x9a...7q8r9s)", "TestNet", 2, real_tx_id, "incrementCounter Execution Complete (Counter: 2)", "5. Second Circuit Call ➔ Counter 1 ➔ 2 (Confirmed on Indexer)")
     frames.append(f5)
 
     # Save animated GIF

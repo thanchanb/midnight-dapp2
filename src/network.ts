@@ -5,21 +5,23 @@ export const NetworkId = {
   DevNet: 'DevNet',
   TestNet: 'TestNet',
   MainNet: 'MainNet',
+  Preview: 'preview',
+  Preprod: 'preprod',
 } as const;
 
-export type NetworkIdType = typeof NetworkId[keyof typeof NetworkId] | MidnightNetworkId;
+export type NetworkIdType = typeof NetworkId[keyof typeof NetworkId] | MidnightNetworkId | string;
 
 let currentNetworkId: string = NetworkId.TestNet;
 
 export function isValidNetworkId(id: string): boolean {
-  return Object.values(NetworkId).includes(id as any);
+  return Object.values(NetworkId).includes(id as any) || ['preview', 'preprod', 'mainnet', 'testnet', 'undeployed'].includes(id.toLowerCase());
 }
 
 export function setNetworkId(id: NetworkIdType): string {
   try {
     setMidnightNetworkId(id as MidnightNetworkId);
   } catch {
-    // Fallback in case of browser/non-WASM execution context
+    // Non-WASM execution context handling
   }
   currentNetworkId = id;
   return getNetworkId();
@@ -30,7 +32,7 @@ export function getNetworkId(): string {
     const midnightId = getMidnightNetworkId();
     if (midnightId) return midnightId;
   } catch {
-    // Fallback if WASM context is not loaded yet
+    // Pending WASM load context
   }
   return currentNetworkId;
 }
@@ -41,8 +43,12 @@ export function getNetworkDetails(id?: NetworkIdType) {
     id: activeId,
     name: activeId === NetworkId.TestNet ? 'Midnight Preprod Testnet' : `${activeId} Environment`,
     rpcUrl: 'https://rpc.preprod.midnight.network',
+    indexerUrl: 'https://indexer.preprod.midnight.network/api/v4/graphql',
+    indexerWsUrl: 'wss://indexer.preprod.midnight.network/api/v4/graphql/ws',
+    proofServerUrl: 'http://localhost:6300',
     isPreprod: activeId === NetworkId.TestNet || activeId === NetworkId.Undeployed,
   };
 }
+
 
 

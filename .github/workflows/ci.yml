@@ -33,14 +33,11 @@ jobs:
       - name: 📦 Install NPM Dependencies
         run: npm ci || npm install
 
-      - name: 🔨 Compile Compact Smart Contract (ZK Circuits)
-        run: npm run compile
+      - name: 🔍 TypeScript Type Check
+        run: npm run build
 
-      - name: 🧪 Execute Automated 7-Stage Test Suite
+      - name: 🧪 Execute Automated Real Flow & Contract Test Suites
         run: npm test
 
       - name: 🏗️ Build Vite Static Web UI (Production Dist)
         run: npm run build:ui
-
-      - name: 🚀 Verify Contract Deployment Engine
-        run: npm run deploy

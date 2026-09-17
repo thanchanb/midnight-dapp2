@@ -24,9 +24,9 @@
 
       <div class="nav-right">
         <div class="network-selector-container">
-          <label for="networkSelect" class="network-label">setNetworkId():</label>
+          <label for="networkSelect" class="network-label">Network:</label>
           <select id="networkSelect" class="network-select">
-            <option value="TestNet" selected>TestNet (Midnight Testnet)</option>
+            <option value="TestNet" selected>TestNet (Midnight Preprod)</option>
             <option value="Undeployed">Undeployed (Local Prover)</option>
             <option value="DevNet">DevNet (Developer Net)</option>
             <option value="MainNet">MainNet (Midnight Mainnet)</option>
@@ -38,12 +38,24 @@
           <span class="network-name" id="verifiedNetworkName">Verified: TestNet</span>
         </div>
 
+        <div class="wallet-balance-box" id="walletBalanceBox" style="display: none;">
+          <span class="balance-label">Dust:</span>
+          <span class="balance-value" id="walletBalanceVal">0</span>
+        </div>
+
         <button id="connectWalletBtn" class="btn btn-connect">
           <span class="wallet-icon">👛</span>
           <span id="walletBtnText">Connect Lace Wallet</span>
         </button>
       </div>
     </header>
+
+    <!-- Visible Wallet Error Banner -->
+    <div id="walletErrorBanner" class="wallet-error-banner" style="display: none;">
+      <span class="error-icon">⚠️</span>
+      <span id="walletErrorMsg" class="error-message"></span>
+      <button id="walletErrorClose" class="error-close-btn" aria-label="Dismiss error">&times;</button>
+    </div>
 
     <!-- Main Container -->
     <main class="main-container">
@@ -53,7 +65,7 @@
         <div class="banner-header">
           <span class="badge badge-purple">🛡️ Observable Privacy Architecture</span>
           <h2>Zero-Knowledge Proofs in Action</h2>
-          <p>Your secret witness is evaluated and proven <strong>locally inside your browser</strong> via `@midnight-ntwrk/compact-runtime`. The raw passphrase never touches the public ledger — only zero-knowledge state proofs and SHA-256 commitments update the Midnight Preprod blockchain.</p>
+          <p>Your secret witness is evaluated locally and proven via the Midnight toolchain and proof server. The raw passphrase never touches the public ledger — only zero-knowledge state proofs and cryptographic commitments update the Midnight Preprod blockchain.</p>
         </div>
 
         <div class="privacy-pipeline">
@@ -61,7 +73,7 @@
             <div class="step-num">01</div>
             <div class="step-content">
               <h4>Client Private Witness</h4>
-              <p>Passphrase held in local browser memory</p>
+              <p>Passphrase held in local client memory</p>
               <code id="privateWitnessStatus" class="code-tag">🔒 Local & Unexposed</code>
             </div>
           </div>
@@ -71,8 +83,8 @@
           <div class="pipe-step">
             <div class="step-num">02</div>
             <div class="step-content">
-              <h4>Local ZK Prover</h4>
-              <p>Compact circuit proof synthesis</p>
+              <h4>Real ZK Prover</h4>
+              <p>Proof server synthesis on port 6300</p>
               <code id="proverStatus" class="code-tag green">⚡ Prover Ready</code>
             </div>
           </div>
@@ -83,8 +95,8 @@
             <div class="step-num">03</div>
             <div class="step-content">
               <h4>Preprod Public Ledger</h4>
-              <p>On-chain state & commitment hash</p>
-              <code id="ledgerStatusTag" class="code-tag cyan">📜 On-Chain Verified</code>
+              <p>On-chain state & indexer confirmation</p>
+              <code id="ledgerStatusTag" class="code-tag cyan">📜 Indexer Verified</code>
             </div>
           </div>
         </div>
@@ -97,7 +109,7 @@
         <section class="card form-card">
           <div class="card-header">
             <h3>⚡ Contract Circuit Interaction</h3>
-            <span class="badge badge-cyan">Compact ZK Circuits</span>
+            <span class="badge badge-cyan">Midnight.js Contract Binding</span>
           </div>
 
           <div class="tabs">
@@ -109,28 +121,32 @@
 
           <!-- Tab Content: Counter -->
           <div class="tab-content active" id="tab-counter">
-            <p class="tab-desc">Execute real <code>incrementCounter()</code> Compact circuit on Midnight ledger to increment on-chain counter state.</p>
+            <p class="tab-desc">Execute real <code>callTx.incrementCounter()</code> through Midnight.js contract binding on Midnight Preprod.</p>
             <button id="btnExecCounter" class="btn btn-primary btn-block">
               <span>➕ Execute incrementCounter Circuit</span>
             </button>
+            <div class="circuit-tx-result" id="counterTxResult" style="display: none; margin-top: 1rem; padding: 0.75rem; background: rgba(0, 242, 254, 0.08); border: 1px solid var(--accent-cyan); border-radius: 6px;">
+              <span class="tx-label" style="font-size: 0.75rem; color: var(--text-muted); display: block;">Confirmed Transaction ID:</span>
+              <span class="tx-id-val" id="counterTxId" style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--accent-cyan); word-break: break-all;">--</span>
+            </div>
           </div>
 
           <!-- Tab Content: Initialize -->
           <div class="tab-content" id="tab-init">
-            <p class="tab-desc">Post a zero-knowledge commitment hash on-chain to create a shielded escrow vault.</p>
+            <p class="tab-desc">Post a zero-knowledge commitment on-chain to create a shielded escrow vault.</p>
             
             <div class="form-group">
               <label for="initPassphrase">Secret Vault Passphrase (Private Witness)</label>
               <div class="input-wrapper">
-                <input type="password" id="initPassphrase" placeholder="e.g. midnight_secret_key_2026" value="midnight_secret_key_2026">
-                <button class="toggle-pwd" id="toggleInitPwd">👁️</button>
+                <input type="password" id="initPassphrase" placeholder="Enter secret vault passphrase">
+                <button class="toggle-pwd" id="toggleInitPwd" type="button">👁️</button>
               </div>
               <small>This secret stays 100% private in browser memory.</small>
             </div>
 
             <div class="form-group">
-              <label for="initOwnerId">Vault Owner Public Identifier</label>
-              <input type="text" id="initOwnerId" placeholder="0x0200..." value="0x0200736861646f77b2c3d4e5f60718293a4b5c6d7e8fa0b1c2d3e4f506172839">
+              <label for="initOwnerId">Vault Owner Public Identifier (32-byte Hex)</label>
+              <input type="text" id="initOwnerId" placeholder="Enter 32-byte hex owner ID">
             </div>
 
             <button id="btnExecInit" class="btn btn-primary btn-block">
@@ -145,14 +161,14 @@
             <div class="form-group">
               <label for="claimPassphrase">Vault Passphrase (Private Witness)</label>
               <div class="input-wrapper">
-                <input type="password" id="claimPassphrase" placeholder="Enter matching secret passphrase" value="midnight_secret_key_2026">
-                <button class="toggle-pwd" id="toggleClaimPwd">👁️</button>
+                <input type="password" id="claimPassphrase" placeholder="Enter matching secret passphrase">
+                <button class="toggle-pwd" id="toggleClaimPwd" type="button">👁️</button>
               </div>
             </div>
 
             <div class="form-group">
-              <label for="claimSalt">User Private Salt</label>
-              <input type="text" id="claimSalt" placeholder="Auto-generated 32-byte salt" value="0xcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd">
+              <label for="claimSalt">User Private Salt (32-byte Hex)</label>
+              <input type="text" id="claimSalt" placeholder="Enter 32-byte hex salt">
             </div>
 
             <button id="btnExecClaim" class="btn btn-success btn-block">
@@ -162,7 +178,7 @@
 
           <!-- Tab Content: Revoke -->
           <div class="tab-content" id="tab-revoke">
-            <p class="tab-desc">Transition vault status to revoked if escrow conditions are violated.</p>
+            <p class="tab-desc">Transition vault status to revoked if escrow conditions are violated (requires owner witness authorization).</p>
             <button id="btnExecRevoke" class="btn btn-danger btn-block">
               <span>🚫 Execute revokeVault Circuit</span>
             </button>
@@ -179,36 +195,46 @@
           <div class="ledger-metrics">
             <div class="metric-box">
               <span class="metric-label">Ledger Counter</span>
-              <span class="metric-value" id="displayCounterValue">0</span>
+              <span class="metric-value" id="displayCounterValue">--</span>
             </div>
 
             <div class="metric-box">
               <span class="metric-label">Vault State</span>
-              <span class="metric-value badge-state" id="displayVaultState">UNINITIALIZED</span>
+              <span class="metric-value badge-state" id="displayVaultState">UNLOADED</span>
             </div>
 
             <div class="metric-box">
               <span class="metric-label">Total Deposits</span>
-              <span class="metric-value" id="displayTotalDeposits">0</span>
+              <span class="metric-value" id="displayTotalDeposits">--</span>
             </div>
           </div>
 
           <div class="info-group">
-            <label>Preprod Contract Address</label>
+            <label>Contract Address</label>
             <div class="address-box">
-              <span id="displayContractAddr">0x0200736861646f77b2c3d4e5f60718293a4b5c6d7e8fa0b1c2d3e4f506172839</span>
-              <button class="btn-copy" id="btnCopyAddr">📋</button>
+              <span id="displayContractAddr">Not Joined</span>
+              <button class="btn-copy" id="btnCopyAddr" title="Copy Address">📋</button>
+            </div>
+            <div class="contract-actions">
+              <input type="text" id="inputContractAddr" placeholder="Paste deployed contract address..." class="contract-input">
+              <button id="btnJoinContract" class="btn btn-secondary">Join</button>
+              <button id="btnDeployContract" class="btn btn-primary">Deploy New</button>
             </div>
           </div>
 
           <div class="info-group">
-            <label>Public Commitment Hash (Disclosed)</label>
-            <div class="hash-box" id="displayCommitmentHash">0x0000000000000000000000000000000000000000000000000000000000000000</div>
+            <label>Latest Transaction ID (Preprod Confirmed)</label>
+            <div class="hash-box" id="displayLatestTxId" style="word-break: break-all;">--</div>
           </div>
 
           <div class="info-group">
-            <label>Last Disclosed Witness Digest</label>
-            <div class="hash-box" id="displayDisclosedHash">0x0000000000000000000000000000000000000000000000000000000000000000</div>
+            <label>Public Commitment Hash</label>
+            <div class="hash-box" id="displayCommitmentHash">--</div>
+          </div>
+
+          <div class="info-group">
+            <label>Last Disclosed Witness Hash</label>
+            <div class="hash-box" id="displayDisclosedHash">--</div>
           </div>
 
           <!-- Console Terminal Output -->
@@ -219,8 +245,8 @@
             </div>
             <div class="terminal-body" id="terminalLog">
               <div class="log-line dim">[System] Connected to Midnight Preprod Testnet</div>
-              <div class="log-line green">[System] ShadowVault contract bindings initialized</div>
-              <div class="log-line cyan">[Lace Wallet] DApp connector interface listening on window.midnight.mnLace</div>
+              <div class="log-line green">[System] ShadowVault contract bindings ready</div>
+              <div class="log-line cyan">[Lace Wallet] Connect wallet to begin interacting with the live network</div>
             </div>
           </div>
         </section>
@@ -230,10 +256,17 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <p>Midnight Level 2 & 3 Submission | Powered by Compact 0.31.1 & Midnight.js | Verified `setNetworkId()`</p>
+      <p>Midnight ShadowVault | Powered by Compact & Midnight.js | Verified Live Preprod Network</p>
     </footer>
   </div>
 
+  <script type="module">
+    import { Buffer } from 'buffer';
+    window.Buffer = Buffer;
+    window.global = window;
+    window.process = window.process || { env: {} };
+    globalThis.Buffer = Buffer;
+  </script>
   <script type="module" src="./src/app.ts"></script>
 </body>
 </html>

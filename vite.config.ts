@@ -18,10 +18,15 @@ export default defineConfig({
   server: {
     port: 5173,
     host: true,
+    allowedHosts: true,
+  },
+  define: {
+    'global': 'globalThis',
   },
   resolve: {
     alias: {
       '@managed': path.resolve(import.meta.dirname || '.', './managed'),
+      buffer: 'buffer',
     },
   },
 });

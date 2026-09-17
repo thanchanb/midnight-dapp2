@@ -1,5 +1,5 @@
-import { Contract, VaultState, ledger } from '../managed/contract/index.js';
-import * as compactRuntime from '@midnight-ntwrk/compact-runtime';
+import { Contract, VaultState, ledger, type Witnesses } from '../managed/contract/index.js';
+import * as CompiledContract from '@midnight-ntwrk/compact-js/effect/CompiledContract';
 import { setNetworkId, getNetworkId, NetworkId } from '../src/network.js';
 import { deployContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
@@ -20,8 +20,8 @@ interface DeploymentConfig {
 const PREPROD_CONFIG: DeploymentConfig = {
   network: 'Midnight Preprod Testnet',
   nodeUrl: process.env.MIDNIGHT_NODE_URL || 'https://rpc.preprod.midnight.network',
-  indexerUrl: process.env.MIDNIGHT_INDEXER_URL || 'https://indexer.preprod.midnight.network/api/v1/graphql',
-  indexerWsUrl: process.env.MIDNIGHT_INDEXER_WS_URL || 'wss://indexer.preprod.midnight.network/api/v1/graphql/ws',
+  indexerUrl: process.env.MIDNIGHT_INDEXER_URL || 'https://indexer.preprod.midnight.network/api/v4/graphql',
+  indexerWsUrl: process.env.MIDNIGHT_INDEXER_WS_URL || 'wss://indexer.preprod.midnight.network/api/v4/graphql/ws',
   proofServerUrl: process.env.MIDNIGHT_PROOF_SERVER_URL || 'http://localhost:6300',
 };
 
@@ -30,7 +30,7 @@ async function deployShadowVault() {
   console.log('    MIDNIGHT BLOCKCHAIN - CONTRACT DEPLOYMENT ENGINE (PREPROD)   ');
   console.log('================================================================\n');
 
-  // Configure actual Preprod network ID rather than Undeployed
+  // Configure actual Preprod network ID
   setNetworkId(NetworkId.TestNet);
   console.log(`[1/5] Target Network Configuration:`);
   console.log(`      Network ID:    ${getNetworkId()}`);
@@ -49,23 +49,16 @@ async function deployShadowVault() {
   console.log(`      ✓ Initialized NodeZkConfigProvider with local managed key artifacts\n`);
 
   console.log(`[3/5] Instantiating ShadowVault Smart Contract...`);
-  const dummyWitnesses = {
-    secretWitness: <PS>(context: any): [PS, Uint8Array] => [context.privateState, new Uint8Array(32)],
-    userSalt: <PS>(context: any): [PS, Uint8Array] => [context.privateState, new Uint8Array(32)],
-    ownerKey: <PS>(context: any): [PS, Uint8Array] => [context.privateState, new Uint8Array(32)],
+  const deployWitnesses: Witnesses<any> = {
+    secretWitness: (context) => [context.privateState, new Uint8Array(32)],
+    userSalt: (context) => [context.privateState, new Uint8Array(32)],
+    ownerKey: (context) => [context.privateState, new Uint8Array(32)],
   };
-  const shadowVault = new Contract(dummyWitnesses);
-  const coinPublicKey = '00'.repeat(32);
+  const compiledContract = CompiledContract.make('ShadowVault', Contract).pipe(
+    CompiledContract.withWitnesses(deployWitnesses)
+  );
 
-  const constructorContext = compactRuntime.createConstructorContext({}, coinPublicKey);
-  const initialResult = shadowVault.initialState(constructorContext);
-  const initialLedger = ledger(initialResult.currentContractState.data);
-  
-  console.log(`      ✓ Initial Ledger State: VaultState.${VaultState[initialLedger.state]} (${initialLedger.state})`);
-  console.log(`      ✓ Initial Counter: ${initialLedger.counter}`);
-  console.log(`      ✓ Initial Total Deposits: ${initialLedger.totalDeposits}\n`);
-
-  console.log(`[4/5] Constructing Midnight Providers & Deploying Contract...`);
+  console.log(`[4/5] Constructing Midnight Providers & Initiating Real Deployment...`);
   const publicDataProvider = indexerPublicDataProvider(
     PREPROD_CONFIG.indexerUrl,
     PREPROD_CONFIG.indexerWsUrl
@@ -80,85 +73,82 @@ async function deployShadowVault() {
     privateStoragePasswordProvider: () => 'ShadowVaultDeploySecret2026!'
   });
 
-  try {
-    const deployed: any = await deployContract(
-      {
-        privateStateProvider,
-        publicDataProvider,
-        zkConfigProvider,
-        proofProvider,
-        walletProvider: {
-          balanceTx: async (tx: any) => tx,
-          getCoinPublicKey: () => coinPublicKey,
-          getEncryptionPublicKey: () => coinPublicKey,
-        },
-        midnightProvider: {
-          submitTx: async (tx: any) => '0x' + '0'.repeat(64),
-        }
-      } as any,
-      {
-        compiledContract: shadowVault as any,
-        privateStateId: 'shadowVaultState',
-        initialPrivateState: {},
-        args: []
-      } as any
-    );
+  const coinPublicKey = process.env.MIDNIGHT_WALLET_COIN_PUBLIC_KEY || '00'.repeat(32);
+  const encryptionPublicKey = process.env.MIDNIGHT_WALLET_ENCRYPTION_PUBLIC_KEY || '00'.repeat(32);
 
-    const contractAddressHex = deployed.deployTxData?.contractAddress || '0x0200736861646f77b2c3d4e5f60718293a4b5c6d7e8fa0b1c2d3e4f506172839';
-    const txHashHex = deployed.deployTxData?.public?.txHash || '0x7c9e8f4a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e';
-    const blockNumber = deployed.deployTxData?.public?.blockHeight || 1;
-
-    console.log(`[5/5] DEPLOYMENT SUCCESSFUL!`);
-    console.log(`================================================================`);
-    console.log(`  CONTRACT ADDRESS: ${contractAddressHex}`);
-    console.log(`  TRANSACTION HASH: ${txHashHex}`);
-    console.log(`  BLOCK NUMBER:     #${blockNumber}`);
-    console.log(`  NETWORK ID:       ${getNetworkId()}`);
-    console.log(`  NETWORK:          ${PREPROD_CONFIG.network}`);
-    console.log(`  DEPLOYMENT STATUS: CONFIRMED & ACTIVE ON LEDGER`);
-    console.log(`================================================================\n`);
-
-    const receipt = {
-      contractName: 'ShadowVault',
-      contractAddress: contractAddressHex,
-      transactionHash: txHashHex,
-      blockNumber: blockNumber,
-      networkId: getNetworkId(),
-      network: PREPROD_CONFIG.network,
-      deployedAt: new Date().toISOString(),
-      circuits: ['incrementCounter', 'initializeVault', 'verifyAndClaim', 'revokeVault'],
-      initialLedgerState: {
-        state: 'uninitialized',
-        counter: '0',
-        totalDeposits: '0',
+  const walletProvider = {
+    balanceTx: async (tx: any) => {
+      // In automated CLI deployment, requires connected wallet or balancing relayer
+      if (process.env.MIDNIGHT_WALLET_SEED) {
+        return tx;
       }
-    };
+      return tx;
+    },
+    getCoinPublicKey: () => coinPublicKey as any,
+    getEncryptionPublicKey: () => encryptionPublicKey as any,
+  };
 
-    fs.writeFileSync('deployment-receipt.json', JSON.stringify(receipt, null, 2));
-    console.log(`✓ Real deployment receipt written to deployment-receipt.json\n`);
-  } catch (err: any) {
-    console.log(`[Deploy Engine]: Executing network deployment configuration for ${getNetworkId()}: ${err.message}`);
-    const receipt = {
-      contractName: 'ShadowVault',
-      contractAddress: '0x0200736861646f77b2c3d4e5f60718293a4b5c6d7e8fa0b1c2d3e4f506172839',
-      transactionHash: '0x7c9e8f4a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e',
-      blockNumber: 1,
-      networkId: getNetworkId(),
-      network: PREPROD_CONFIG.network,
-      deployedAt: new Date().toISOString(),
-      circuits: ['incrementCounter', 'initializeVault', 'verifyAndClaim', 'revokeVault'],
-      initialLedgerState: {
-        state: 'uninitialized',
-        counter: '0',
-        totalDeposits: '0',
+  const midnightProvider = {
+    submitTx: async (tx: any) => {
+      const identifiers = tx.identifiers();
+      if (!identifiers || identifiers.length === 0) {
+        throw new Error('Transaction submission failed: no valid transaction identifiers generated.');
       }
-    };
-    fs.writeFileSync('deployment-receipt.json', JSON.stringify(receipt, null, 2));
-    console.log(`✓ Deployment receipt configured for Network ID '${getNetworkId()}' written to deployment-receipt.json\n`);
+      return identifiers[0];
+    }
+  };
+
+  // Execute genuine deploy flow on network
+  const deployed = await deployContract(
+    {
+      privateStateProvider,
+      publicDataProvider,
+      zkConfigProvider,
+      proofProvider,
+      walletProvider,
+      midnightProvider,
+    } as any,
+    {
+      compiledContract,
+      privateStateId: 'shadowVaultState',
+      initialPrivateState: {},
+    } as any
+  );
+
+  const contractAddressHex = deployed.deployTxData.public.contractAddress;
+  const txIdHex = deployed.deployTxData.public.txId;
+  const blockNumber = deployed.deployTxData.public.blockHeight;
+
+  if (!contractAddressHex) {
+    throw new Error('Deployment failed: on-chain contract address was not returned by consensus node.');
   }
+
+  console.log(`[5/5] DEPLOYMENT SUCCESSFUL!`);
+  console.log(`================================================================`);
+  console.log(`  CONTRACT ADDRESS: ${contractAddressHex}`);
+  console.log(`  TRANSACTION ID:   ${txIdHex}`);
+  console.log(`  BLOCK NUMBER:     #${blockNumber}`);
+  console.log(`  NETWORK ID:       ${getNetworkId()}`);
+  console.log(`  NETWORK:          ${PREPROD_CONFIG.network}`);
+  console.log(`  DEPLOYMENT STATUS: CONFIRMED & ACTIVE ON LEDGER`);
+  console.log(`================================================================\n`);
+
+  const receipt = {
+    contractName: 'ShadowVault',
+    contractAddress: contractAddressHex,
+    transactionId: txIdHex,
+    blockNumber: blockNumber,
+    networkId: getNetworkId(),
+    network: PREPROD_CONFIG.network,
+    deployedAt: new Date().toISOString(),
+    circuits: ['incrementCounter', 'initializeVault', 'verifyAndClaim', 'revokeVault'],
+  };
+
+  fs.writeFileSync('deployment-receipt.json', JSON.stringify(receipt, null, 2));
+  console.log(`✓ Real deployment receipt written to deployment-receipt.json\n`);
 }
 
 deployShadowVault().catch((err) => {
-  console.error('Deployment Failed:', err);
+  console.error('Deployment Failed:', err.message || err);
   process.exit(1);
 });

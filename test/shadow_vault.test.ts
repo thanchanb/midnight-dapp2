@@ -25,22 +25,23 @@ function runTestSuite() {
     }
   }
 
-  const dummyCoinPublicKey = '00'.repeat(32);
+  const testCoinPublicKey = '00'.repeat(32);
+  const testContractAddress = '00'.repeat(32);
 
   // Define Witness Implementations (Private State & Proof inputs)
-  const mockSecretWitness = new Uint8Array(32).fill(0xab);
-  const mockUserSalt = new Uint8Array(32).fill(0xcd);
-  const mockOwnerId = new Uint8Array(32).fill(0x34);
+  const testSecretWitness = new Uint8Array(32).fill(0xab);
+  const testUserSalt = new Uint8Array(32).fill(0xcd);
+  const testOwnerId = new Uint8Array(32).fill(0x34);
 
   const witnesses = {
     secretWitness: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
-      return [context.privateState, mockSecretWitness];
+      return [context.privateState, testSecretWitness];
     },
     userSalt: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
-      return [context.privateState, mockUserSalt];
+      return [context.privateState, testUserSalt];
     },
     ownerKey: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
-      return [context.privateState, mockOwnerId];
+      return [context.privateState, testOwnerId];
     }
   };
 
@@ -63,12 +64,12 @@ function runTestSuite() {
   });
 
   test('3. Real Circuit Execution: incrementCounter() State Mutation', () => {
-    const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
+    const constructorContext = compactRuntime.createConstructorContext({}, testCoinPublicKey);
     const initStateResult = shadowVaultContract.initialState(constructorContext);
     
     const circuitCtxCounter = compactRuntime.createCircuitContext(
-      compactRuntime.dummyContractAddress(),
-      dummyCoinPublicKey,
+      testContractAddress,
+      testCoinPublicKey,
       initStateResult.currentContractState.data,
       {}
     );
@@ -88,25 +89,25 @@ function runTestSuite() {
   });
 
   test('5. Full Contract Lifecycle: Initialize -> Active Ledger State & Counter', () => {
-    const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
+    const constructorContext = compactRuntime.createConstructorContext({}, testCoinPublicKey);
     const initStateResult = shadowVaultContract.initialState(constructorContext);
     
     const circuitCtxInit = compactRuntime.createCircuitContext(
-      compactRuntime.dummyContractAddress(),
-      dummyCoinPublicKey,
+      testContractAddress,
+      testCoinPublicKey,
       initStateResult.currentContractState.data,
       {}
     );
 
     const validCommitment = compactRuntime.persistentHash(
       new compactRuntime.CompactTypeVector(2, new compactRuntime.CompactTypeBytes(32)),
-      [mockSecretWitness, mockUserSalt]
+      [testSecretWitness, testUserSalt]
     );
 
     const initResult = shadowVaultContract.circuits.initializeVault(
       circuitCtxInit,
       validCommitment,
-      mockOwnerId
+      testOwnerId
     );
 
     assert(initResult !== undefined, 'initializeVault should return circuit result');
@@ -119,30 +120,30 @@ function runTestSuite() {
   });
 
   test('6. Full Contract Lifecycle: VerifyAndClaim Private Witness Execution & Nullifier Generation', () => {
-    const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
+    const constructorContext = compactRuntime.createConstructorContext({}, testCoinPublicKey);
     const initStateResult = shadowVaultContract.initialState(constructorContext);
     
     const circuitCtxInit = compactRuntime.createCircuitContext(
-      compactRuntime.dummyContractAddress(),
-      dummyCoinPublicKey,
+      testContractAddress,
+      testCoinPublicKey,
       initStateResult.currentContractState.data,
       {}
     );
 
     const validCommitment = compactRuntime.persistentHash(
       new compactRuntime.CompactTypeVector(2, new compactRuntime.CompactTypeBytes(32)),
-      [mockSecretWitness, mockUserSalt]
+      [testSecretWitness, testUserSalt]
     );
 
     const initResult = shadowVaultContract.circuits.initializeVault(
       circuitCtxInit,
       validCommitment,
-      mockOwnerId
+      testOwnerId
     );
 
     const circuitCtxClaim = compactRuntime.createCircuitContext(
-      compactRuntime.dummyContractAddress(),
-      dummyCoinPublicKey,
+      testContractAddress,
+      testCoinPublicKey,
       initResult.context.currentQueryContext.state,
       initResult.context.currentPrivateState
     );
@@ -158,30 +159,30 @@ function runTestSuite() {
   });
 
   test('7. Genuine Owner Authorization: Authorized Owner revokes vault', () => {
-    const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
+    const constructorContext = compactRuntime.createConstructorContext({}, testCoinPublicKey);
     const initStateResult = shadowVaultContract.initialState(constructorContext);
     
     const circuitCtxInit = compactRuntime.createCircuitContext(
-      compactRuntime.dummyContractAddress(),
-      dummyCoinPublicKey,
+      testContractAddress,
+      testCoinPublicKey,
       initStateResult.currentContractState.data,
       {}
     );
 
     const validCommitment = compactRuntime.persistentHash(
       new compactRuntime.CompactTypeVector(2, new compactRuntime.CompactTypeBytes(32)),
-      [mockSecretWitness, mockUserSalt]
+      [testSecretWitness, testUserSalt]
     );
 
     const initResult = shadowVaultContract.circuits.initializeVault(
       circuitCtxInit,
       validCommitment,
-      mockOwnerId
+      testOwnerId
     );
 
     const circuitCtxRevoke = compactRuntime.createCircuitContext(
-      compactRuntime.dummyContractAddress(),
-      dummyCoinPublicKey,
+      testContractAddress,
+      testCoinPublicKey,
       initResult.context.currentQueryContext.state,
       initResult.context.currentPrivateState
     );
@@ -193,44 +194,44 @@ function runTestSuite() {
   });
 
   test('8. Preimage Knowledge Verification: Invalid witness fails verifyAndClaim assertion', () => {
-    const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
+    const constructorContext = compactRuntime.createConstructorContext({}, testCoinPublicKey);
     const initStateResult = shadowVaultContract.initialState(constructorContext);
     
     const circuitCtxInit = compactRuntime.createCircuitContext(
-      compactRuntime.dummyContractAddress(),
-      dummyCoinPublicKey,
+      testContractAddress,
+      testCoinPublicKey,
       initStateResult.currentContractState.data,
       {}
     );
 
     const validCommitment = compactRuntime.persistentHash(
       new compactRuntime.CompactTypeVector(2, new compactRuntime.CompactTypeBytes(32)),
-      [mockSecretWitness, mockUserSalt]
+      [testSecretWitness, testUserSalt]
     );
 
     const initResult = shadowVaultContract.circuits.initializeVault(
       circuitCtxInit,
       validCommitment,
-      mockOwnerId
+      testOwnerId
     );
 
-    // Create contract instance with WRONG witness
+    // Create contract instance with non-matching witness
     const wrongWitnesses = {
       secretWitness: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
-        return [context.privateState, new Uint8Array(32).fill(0x99)]; // WRONG SECRET
+        return [context.privateState, new Uint8Array(32).fill(0x99)]; // Non-matching secret
       },
       userSalt: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
-        return [context.privateState, mockUserSalt];
+        return [context.privateState, testUserSalt];
       },
       ownerKey: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
-        return [context.privateState, mockOwnerId];
+        return [context.privateState, testOwnerId];
       }
     };
     const wrongContract = new Contract(wrongWitnesses);
 
     const circuitCtxClaim = compactRuntime.createCircuitContext(
-      compactRuntime.dummyContractAddress(),
-      dummyCoinPublicKey,
+      testContractAddress,
+      testCoinPublicKey,
       initResult.context.currentQueryContext.state,
       initResult.context.currentPrivateState
     );
@@ -245,40 +246,40 @@ function runTestSuite() {
   });
 
   test('9. Owner Authorization Guard: Non-owner caller fails revokeVault() assertion', () => {
-    const constructorContext = compactRuntime.createConstructorContext({}, dummyCoinPublicKey);
+    const constructorContext = compactRuntime.createConstructorContext({}, testCoinPublicKey);
     const initStateResult = shadowVaultContract.initialState(constructorContext);
     
     const circuitCtxInit = compactRuntime.createCircuitContext(
-      compactRuntime.dummyContractAddress(),
-      dummyCoinPublicKey,
+      testContractAddress,
+      testCoinPublicKey,
       initStateResult.currentContractState.data,
       {}
     );
 
     const validCommitment = compactRuntime.persistentHash(
       new compactRuntime.CompactTypeVector(2, new compactRuntime.CompactTypeBytes(32)),
-      [mockSecretWitness, mockUserSalt]
+      [testSecretWitness, testUserSalt]
     );
 
     const initResult = shadowVaultContract.circuits.initializeVault(
       circuitCtxInit,
       validCommitment,
-      mockOwnerId // Bound on-chain owner
+      testOwnerId // Bound on-chain owner
     );
 
-    // Create contract instance with UNAUTHORIZED non-owner key
+    // Create contract instance with non-owner key
     const unauthorizedWitnesses = {
       secretWitness: witnesses.secretWitness,
       userSalt: witnesses.userSalt,
       ownerKey: <PS>(context: compactRuntime.WitnessContext<Ledger, PS>): [PS, Uint8Array] => {
-        return [context.privateState, new Uint8Array(32).fill(0x77)]; // WRONG OWNER KEY
+        return [context.privateState, new Uint8Array(32).fill(0x77)]; // Non-owner key
       }
     };
     const unauthorizedContract = new Contract(unauthorizedWitnesses);
 
     const circuitCtxRevoke = compactRuntime.createCircuitContext(
-      compactRuntime.dummyContractAddress(),
-      dummyCoinPublicKey,
+      testContractAddress,
+      testCoinPublicKey,
       initResult.context.currentQueryContext.state,
       initResult.context.currentPrivateState
     );

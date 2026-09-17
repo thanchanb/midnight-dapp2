@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "compile": "compact compile contracts/shadow_vault.compact managed",
     "build": "tsc",
-    "test": "npx tsx test/shadow_vault.test.ts",
+    "test": "npx tsx test/real_flow.test.ts && npx tsx test/shadow_vault.test.ts",
+    "test:real": "npx tsx test/real_flow.test.ts",
     "test:e2e": "npx tsx test/preprod_e2e.test.ts",
     "deploy": "npx tsx scripts/deploy.ts"
   },
@@ -36,7 +37,8 @@
     "@midnight-ntwrk/midnight-js-network-id": "^4.1.1",
     "@midnight-ntwrk/midnight-js-node-zk-config-provider": "^4.1.1",
     "@midnight-ntwrk/midnight-js-types": "^4.1.1",
-    "@midnight-ntwrk/midnight-js-utils": "^4.1.1"
+    "@midnight-ntwrk/midnight-js-utils": "^4.1.1",
+    "buffer": "^6.0.3"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
