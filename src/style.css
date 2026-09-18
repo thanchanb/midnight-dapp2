@@ -262,6 +262,18 @@ body {
   box-shadow: 0 8px 20px rgba(79, 70, 229, 0.35);
 }
 
+.btn-connect.connecting {
+  background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%);
+  opacity: 0.95;
+  cursor: wait;
+  animation: pulse-connect 1.2s infinite ease-in-out;
+}
+
+@keyframes pulse-connect {
+  0%, 100% { opacity: 0.85; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.02); }
+}
+
 .btn-connect.connected {
   background: linear-gradient(135deg, #059669 0%, #0284c7 100%);
   color: #ffffff;

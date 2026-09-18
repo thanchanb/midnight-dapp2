@@ -11,7 +11,7 @@ if (typeof globalThis !== 'undefined') {
 import { Contract, VaultState, ledger, type Witnesses } from '../managed/contract/index.js';
 import * as CompiledContract from '@midnight-ntwrk/compact-js/effect/CompiledContract';
 import { findDeployedContract, deployContract, type DeployedContract, type FoundContract } from '@midnight-ntwrk/midnight-js-contracts';
-import { setNetworkId, getNetworkId, NetworkId } from './network.js';
+import { setNetworkId, getNetworkId, NetworkId, getNetworkDetails } from './network.js';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
 import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client-proof-provider';
 import type { ConnectedAPI, TokenType } from '@midnight-ntwrk/dapp-connector-api';
@@ -173,12 +173,52 @@ class ShadowVaultDApp {
   private totalDeposits: bigint | null = null;
   private publicCommitment: Uint8Array | null = null;
   private lastDisclosedHash: Uint8Array | null = null;
+  private cachedWalletConnector: any = null;
+  private isConnectingWallet: boolean = false;
 
   constructor() {
     setNetworkId(NetworkId.TestNet);
     this.initProviders();
+    this.initWalletDiscovery();
     this.bindDOMEvents();
     this.log('System', 'ShadowVault initialized on Midnight Preprod Testnet.', 'green');
+  }
+
+  private initWalletDiscovery() {
+    const discover = () => {
+      if (this.cachedWalletConnector) return true;
+      const midnight = (typeof window !== 'undefined' && (window as any).midnight) ? (window as any).midnight : null;
+      if (!midnight) return false;
+
+      let connector: any = midnight.mnLace || midnight.lace;
+      if (!connector) {
+        for (const [_, val] of Object.entries(midnight)) {
+          const w = val as any;
+          if (w && (typeof w.connect === 'function' || typeof w.enable === 'function')) {
+            if (w.rdns === 'io.lace.wallet' || w.name?.toLowerCase().includes('lace')) {
+              connector = w;
+              break;
+            }
+            if (!connector) connector = w;
+          }
+        }
+      }
+      if (connector) {
+        this.cachedWalletConnector = connector;
+        return true;
+      }
+      return false;
+    };
+
+    if (!discover()) {
+      setTimeout(discover, 30);
+      setTimeout(discover, 100);
+      setTimeout(discover, 250);
+      setTimeout(discover, 600);
+      if (typeof window !== 'undefined') {
+        window.addEventListener('load', discover, { once: true });
+      }
+    }
   }
 
   private initProviders() {
@@ -227,8 +267,11 @@ class ShadowVaultDApp {
     if (!this.dappConnectorAPI) {
       throw new Error('Cannot construct providers: Lace Wallet is not connected.');
     }
-    const currentCoinKey = (this.coinPublicKey || '00'.repeat(32)) as unknown as CoinPublicKey;
-    const currentEncKey = (this.encryptionPublicKey || '00'.repeat(32)) as unknown as EncPublicKey;
+    if (!this.coinPublicKey || !this.encryptionPublicKey) {
+      throw new Error('Cannot construct providers: Lace Wallet has not provided active Coin or Encryption public keys. Ensure Lace wallet is unlocked and selected.');
+    }
+    const currentCoinKey = this.coinPublicKey as unknown as CoinPublicKey;
+    const currentEncKey = this.encryptionPublicKey as unknown as EncPublicKey;
 
     const walletProvider: WalletProvider = {
       balanceTx: async (tx: any): Promise<FinalizedTransaction> => {
@@ -258,9 +301,12 @@ class ShadowVaultDApp {
       }
     };
 
+    const netDetails = getNetworkDetails(this.activeNetwork);
+    const activePublicDataProvider = indexerPublicDataProvider(netDetails.indexerUrl, netDetails.indexerWsUrl);
+
     return {
       privateStateProvider: this.privateStateProvider,
-      publicDataProvider: this.publicDataProvider,
+      publicDataProvider: activePublicDataProvider,
       zkConfigProvider: this.zkConfigProvider!,
       proofProvider: this.proofProvider,
       walletProvider,
@@ -284,7 +330,7 @@ class ShadowVaultDApp {
     }
   }
 
-  // Phase 1: Real wallet connect/disconnect ONLY
+  // Phase 1: Real wallet connect/disconnect ONLY (Optimized for instant popup trigger)
   public async toggleLaceWallet() {
     const btnText = document.getElementById('walletBtnText');
     const btn = document.getElementById('connectWalletBtn');
@@ -306,6 +352,7 @@ class ShadowVaultDApp {
 
       if (btnText) btnText.textContent = 'Connect Lace Wallet';
       btn?.classList.remove('connected');
+      btn?.classList.remove('connecting');
       if (btn) btn.removeAttribute('title');
       if (balanceBox) balanceBox.style.display = 'none';
 
@@ -313,205 +360,278 @@ class ShadowVaultDApp {
       return;
     }
 
+    if (this.isConnectingWallet) {
+      this.log('Lace Wallet', 'Connection already in progress. Please check the Lace popup window.', 'yellow');
+      return;
+    }
+
+    // Instant visual feedback for user
+    if (btnText) btnText.textContent = 'Opening Lace...';
+    btn?.classList.add('connecting');
+    this.isConnectingWallet = true;
+
     try {
-      // Allow up to 1.5s for extension script injection if not immediately ready
-      let midnightWallets = (typeof window !== 'undefined' && window.midnight) ? window.midnight : null;
-      if (!midnightWallets) {
-        for (let i = 0; i < 15; i++) {
-          await new Promise(res => setTimeout(res, 100));
-          if (typeof window !== 'undefined' && window.midnight) {
-            midnightWallets = window.midnight;
+      // 1. Connector retrieval from pre-discovery cache or immediate window check
+      let walletConnector: any = this.cachedWalletConnector;
+      if (!walletConnector) {
+        let midnightWallets = (typeof window !== 'undefined' && (window as any).midnight) ? (window as any).midnight : null;
+        if (!midnightWallets) {
+          // Fast poll up to 200ms
+          for (let i = 0; i < 10; i++) {
+            await new Promise(res => setTimeout(res, 20));
+            if (typeof window !== 'undefined' && (window as any).midnight) {
+              midnightWallets = (window as any).midnight;
+              break;
+            }
+          }
+        }
+
+        if (!midnightWallets) {
+          const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+          const msg = isLocalhost
+            ? 'Midnight Lace wallet not detected on localhost. Ensure Lace Wallet extension is installed, unlocked, and allowed on localhost.'
+            : 'Midnight Lace wallet extension is not detected. Please install and unlock the Lace Wallet extension.';
+          throw new Error(msg);
+        }
+
+        walletConnector = midnightWallets.mnLace || midnightWallets.lace;
+        if (!walletConnector) {
+          for (const [_, val] of Object.entries(midnightWallets)) {
+            const w = val as any;
+            if (w && (typeof w.connect === 'function' || typeof w.enable === 'function')) {
+              if (w.rdns === 'io.lace.wallet' || w.name?.toLowerCase().includes('lace')) {
+                walletConnector = w;
+                break;
+              }
+              if (!walletConnector) walletConnector = w;
+            }
+          }
+        }
+        if (walletConnector) {
+          this.cachedWalletConnector = walletConnector;
+        }
+      }
+
+      if (!walletConnector) {
+        throw new Error('window.midnight detected but no active Lace connector found.');
+      }
+
+      // 2. Select network hints based on current UI selection
+      const uiSelect = document.getElementById('networkSelect') as HTMLSelectElement;
+      const currentSelected = uiSelect?.value || getNetworkId() || 'TestNet';
+      const lowerSelected = currentSelected.toLowerCase();
+
+      // In Midnight Lace extension, Midnight Preprod's network ID is 'preprod' (lowercase).
+      // Order candidate hints prioritizing the user's selected network, followed by common Midnight environments.
+      let networkHints: string[] = [];
+      if (lowerSelected.includes('test') || lowerSelected.includes('preprod')) {
+        networkHints = ['preprod', 'testnet', 'undeployed', 'devnet', 'preview'];
+      } else if (lowerSelected.includes('undep')) {
+        networkHints = ['undeployed', 'preprod', 'testnet', 'devnet', 'preview'];
+      } else if (lowerSelected.includes('dev')) {
+        networkHints = ['devnet', 'preprod', 'undeployed', 'testnet', 'preview'];
+      } else if (lowerSelected.includes('main')) {
+        networkHints = ['mainnet', 'preprod', 'undeployed'];
+      } else {
+        networkHints = [lowerSelected, 'preprod', 'undeployed', 'testnet'];
+      }
+
+      this.log('Lace Wallet', 'Triggering Lace Wallet authorization...', 'cyan');
+      this.log('Lace Wallet', 'If Lace is locked, please enter your password in the Lace popup window.', 'yellow');
+
+      let api: any = null;
+      let lastError: any = null;
+      let connectedHint = '';
+
+      for (const hint of networkHints) {
+        try {
+          // Trigger genuine Lace popup window
+          const connectPromise = walletConnector.connect(hint);
+          
+          // Generous timeout allowing user ample time to authorize and unlock in the extension popup
+          const timeoutPromise = new Promise((_, reject) => {
+            setTimeout(() => reject(new Error('Connection timed out. Please check the Lace Wallet extension popup.')), 180000);
+          });
+
+          api = await Promise.race([connectPromise, timeoutPromise]);
+          if (api) {
+            connectedHint = hint;
             break;
           }
-        }
-      }
-
-      console.log('Window.midnight content:', midnightWallets);
-
-      if (!midnightWallets) {
-        const isLocalhost = window.location.hostname === 'localhost';
-        const msg = isLocalhost
-          ? 'Midnight Lace wallet not detected on localhost. Chrome extensions block "localhost" unless permitted. Try opening http://localtest.me:5173/ or hard refresh (Cmd+Shift+R).'
-          : 'Midnight Lace wallet extension is not detected. Please install and unlock the Lace Wallet extension.';
-        throw new Error(msg);
-      }
-
-      // Discover connector: Lace injects either under mnLace, lace, or a random UUID with rdns="io.lace.wallet"
-      let walletConnector: any = midnightWallets.mnLace || midnightWallets.lace;
-      if (!walletConnector) {
-        for (const [key, val] of Object.entries(midnightWallets)) {
-          const w = val as any;
-          if (w && (typeof w.connect === 'function' || typeof w.enable === 'function')) {
-            if (w.rdns === 'io.lace.wallet' || w.name?.toLowerCase().includes('lace')) {
-              walletConnector = w;
-              break;
-            }
-            if (!walletConnector) walletConnector = w;
+        } catch (err: any) {
+          lastError = err;
+          const msg = err?.message || String(err);
+          // If user explicitly cancelled / declined, stop immediately
+          if (msg.toLowerCase().includes('reject') || msg.toLowerCase().includes('cancel') || msg.toLowerCase().includes('denied') || msg.toLowerCase().includes('declined')) {
+            throw new Error('Wallet authorization was cancelled by user.');
           }
-        }
-      }
-
-      if (!walletConnector) {
-        throw new Error(`window.midnight detected but no active connector found. Keys: ${Object.keys(midnightWallets).join(', ')}`);
-      }
-
-      this.log('Lace Wallet', 'Requesting wallet authorization...', 'cyan');
-
-      // Candidate networks supported by Lace: preprod, preview, undeployed, mainnet
-      const candidateNetworks = ['preprod', 'preview', 'undeployed', 'mainnet'];
-      let api: any = null;
-      let activeNetwork = '';
-      let lastError: any = null;
-
-      if (typeof walletConnector.connect === 'function') {
-        for (const net of candidateNetworks) {
-          try {
-            api = await walletConnector.connect(net);
-            if (api) {
-              activeNetwork = net;
-              this.activeNetwork = net;
-              this.log('Lace Wallet', `Connected to Midnight ${net} network!`, 'green');
-
-              // Set global network ID in Midnight.js to exact connected network
-              setNetworkId(net as any);
-              this.log('System', `Synced Midnight Network ID to '${net}'`, 'cyan');
-
-              // Configure public data provider and network ID to match connected network
-              const indexerHttp = `https://indexer.${net}.midnight.network/api/v4/graphql`;
-              const indexerWs = `wss://indexer.${net}.midnight.network/api/v4/graphql/ws`;
-              this.publicDataProvider = indexerPublicDataProvider(indexerHttp, indexerWs);
-              this.log('Indexer', `Synced public data provider to ${net}: ${indexerHttp}`, 'cyan');
-
-              // Update verified network badge in UI
-              const verifiedBadge = document.getElementById('verifiedNetworkName');
-              if (verifiedBadge) verifiedBadge.textContent = `Verified: ${net.charAt(0).toUpperCase() + net.slice(1)}`;
-              break;
-            }
-          } catch (err: any) {
-            lastError = err;
-            const msg = err?.message || String(err);
-            if (msg.includes('Network ID mismatch') || msg.includes('Unsupported network ID')) {
-              continue; // Try next network
-            }
-            throw err; // Stop on user rejection or unexpected error
+          // If network hint mismatch, try fallback hint
+          if (msg.includes('Network ID mismatch') || msg.includes('Unsupported network ID') || msg.includes('not supported') || msg.includes('Invalid network')) {
+            continue;
           }
+          throw err;
         }
-      } else if (typeof walletConnector.enable === 'function') {
-        api = await walletConnector.enable();
       }
 
       if (!api) {
-        throw lastError || new Error('Wallet connection failed or was rejected by user.');
+        const lastMsg = lastError?.message || String(lastError || '');
+        if (lastMsg.includes('Network ID mismatch') || lastMsg.includes('Unsupported network ID') || lastMsg.includes('Invalid network')) {
+          throw new Error('Network ID mismatch: Lace is on a different network. In Lace settings, switch network to Midnight Preprod (or set the UI dropdown to match your Lace network).');
+        }
+        throw lastError || new Error('Failed to connect to Lace Wallet.');
       }
 
       this.dappConnectorAPI = api;
+      this.log('Lace Wallet', 'Lace authorization approved! Loading wallet...', 'cyan');
 
-      // Extract real address and real balance matching Lace v2.3.3 API returns
+      // Determine active connected network from Lace config or connected hint
+      let connectedNetworkName = connectedHint;
+      try {
+        if (typeof api.getConfiguration === 'function') {
+          const cfg = await api.getConfiguration();
+          if (cfg?.networkId) {
+            connectedNetworkName = cfg.networkId;
+          }
+        }
+      } catch (e) {
+        console.warn('api.getConfiguration note:', e);
+      }
+
+      const activeNetLower = (connectedNetworkName || currentSelected).toLowerCase();
+      let mappedNetworkId: string = NetworkId.TestNet;
+      if (activeNetLower.includes('undep')) {
+        mappedNetworkId = NetworkId.Undeployed;
+      } else if (activeNetLower.includes('preview')) {
+        mappedNetworkId = NetworkId.Preview;
+      } else if (activeNetLower.includes('dev')) {
+        mappedNetworkId = NetworkId.DevNet;
+      } else if (activeNetLower.includes('main')) {
+        mappedNetworkId = NetworkId.MainNet;
+      } else {
+        mappedNetworkId = NetworkId.TestNet;
+      }
+
+      setNetworkId(mappedNetworkId as any);
+      this.activeNetwork = mappedNetworkId;
+
+      const verifiedBadge = document.getElementById('verifiedNetworkName');
+      if (verifiedBadge) verifiedBadge.textContent = `Verified: ${mappedNetworkId}`;
+      if (uiSelect && uiSelect.value !== mappedNetworkId) {
+        uiSelect.value = mappedNetworkId;
+      }
+
+      if (connectedNetworkName && connectedNetworkName.toLowerCase() !== currentSelected.toLowerCase()) {
+        this.log('Network', `Synced DApp to Lace active network: ${mappedNetworkId} (${connectedNetworkName})`, 'cyan');
+      }
+
+      // Extract address and keys using official Midnight DApp Connector API methods
       let realAddress = '';
       let realBalance: bigint = 0n;
 
-      // 1. Unshielded Address
-      if (typeof api.getUnshieldedAddress === 'function') {
-        try {
-          const res = await api.getUnshieldedAddress();
-          if (res?.unshieldedAddress) {
-            realAddress = res.unshieldedAddress;
-            this.unshieldedAddress = res.unshieldedAddress;
-          } else if (typeof res === 'string') {
-            realAddress = res;
-            this.unshieldedAddress = res;
-          }
-        } catch (e) {
-          console.warn('api.getUnshieldedAddress:', e);
-        }
-      }
-
-      // 2. Shielded Address
+      // 1. Official getShieldedAddresses()
       if (typeof api.getShieldedAddresses === 'function') {
         try {
-          const res = await api.getShieldedAddresses();
-          if (res?.shieldedAddress) {
-            if (!realAddress) realAddress = res.shieldedAddress;
-            this.coinPublicKey = res.shieldedCoinPublicKey || null;
-            this.encryptionPublicKey = res.shieldedEncryptionPublicKey || null;
-          } else if (Array.isArray(res) && res.length > 0) {
-            if (!realAddress) realAddress = res[0];
+          const shielded = await Promise.race([
+            api.getShieldedAddresses(),
+            new Promise((_, r) => setTimeout(() => r(null), 3000))
+          ]);
+          if (shielded?.shieldedAddress) {
+            realAddress = shielded.shieldedAddress;
+            if (shielded.shieldedCoinPublicKey) this.coinPublicKey = shielded.shieldedCoinPublicKey;
+            if (shielded.shieldedEncryptionPublicKey) this.encryptionPublicKey = shielded.shieldedEncryptionPublicKey;
           }
         } catch (e) {
-          console.warn('api.getShieldedAddresses:', e);
+          console.warn('getShieldedAddresses note:', e);
         }
       }
 
-      // 3. Dust Address
-      if (!realAddress && typeof api.getDustAddress === 'function') {
+      // 2. Official getUnshieldedAddress()
+      if (!realAddress && typeof api.getUnshieldedAddress === 'function') {
         try {
-          const res = await api.getDustAddress();
-          if (res?.dustAddress) realAddress = res.dustAddress;
-          else if (typeof res === 'string') realAddress = res;
+          const unshielded = await Promise.race([
+            api.getUnshieldedAddress(),
+            new Promise((_, r) => setTimeout(() => r(null), 3000))
+          ]);
+          if (unshielded?.unshieldedAddress) {
+            realAddress = unshielded.unshieldedAddress;
+          }
         } catch (e) {
-          console.warn('api.getDustAddress:', e);
+          console.warn('getUnshieldedAddress note:', e);
         }
       }
 
-      // 4. Balances: Dust & Unshielded / Shielded
+      // 3. Official getDustBalance()
       if (typeof api.getDustBalance === 'function') {
         try {
-          const dust = await api.getDustBalance();
+          const dust = await Promise.race([
+            api.getDustBalance(),
+            new Promise((_, r) => setTimeout(() => r(null), 3000))
+          ]);
           if (dust?.balance !== undefined) {
             realBalance = BigInt(dust.balance);
           } else if (typeof dust === 'bigint' || typeof dust === 'number') {
             realBalance = BigInt(dust);
           }
         } catch (e) {
-          console.warn('api.getDustBalance:', e);
+          console.warn('getDustBalance note:', e);
         }
       }
 
-      if (realBalance === 0n && typeof api.getUnshieldedBalances === 'function') {
-        try {
-          const unshieldedBal = await api.getUnshieldedBalances();
-          if (unshieldedBal && typeof unshieldedBal === 'object') {
-            const values = Object.values(unshieldedBal);
-            if (values.length > 0) {
-              realBalance = BigInt(values[0] as any);
-            }
-          }
-        } catch (e) {
-          console.warn('api.getUnshieldedBalances:', e);
-        }
-      }
-
-      // Fallback to legacy state()
+      // 4. Fallback to state() if available
       if (!realAddress && typeof api.state === 'function') {
         try {
-          const walletState = await api.state();
-          if (walletState) {
-            realAddress = walletState.address || walletState.shieldedAddress || '';
-            this.coinPublicKey = walletState.coinPublicKey || walletState.shieldedCoinPublicKey || null;
-            this.encryptionPublicKey = walletState.encryptionPublicKey || walletState.shieldedEncryptionPublicKey || null;
-            if (walletState.balance !== undefined) {
-              realBalance = BigInt(walletState.balance);
-            }
+          const s = await Promise.race([
+            api.state(),
+            new Promise((_, r) => setTimeout(() => r(null), 3000))
+          ]);
+          if (s?.address) realAddress = s.address;
+          else if (s?.shieldedAddress) realAddress = s.shieldedAddress;
+          if (realBalance === 0n && s?.balance !== undefined) {
+            realBalance = BigInt(s.balance);
           }
-        } catch (e) {
-          console.warn('api.state:', e);
-        }
+        } catch (e) { }
       }
 
       if (!realAddress) {
-        throw new Error('Connected to Lace, but failed to retrieve account address. Ensure a Midnight account is selected in Lace.');
+        realAddress = (api as any).address || (api as any).shieldedAddress || (api as any).unshieldedAddress;
+      }
+
+      if (!realAddress) {
+        throw new Error('Lace Wallet connected but failed to return an active wallet address.');
       }
 
       this.walletAddress = realAddress;
       this.walletDustBalance = realBalance;
       this.isConnected = true;
 
-      // Display real address in UI
+      // Ensure active NetworkId strictly matches the address encoding
+      const addrLower = realAddress.toLowerCase();
+      if (addrLower.includes('_preview')) {
+        setNetworkId(NetworkId.Preview);
+        this.activeNetwork = NetworkId.Preview;
+      } else if (addrLower.includes('_testnet')) {
+        setNetworkId(NetworkId.TestNet);
+        this.activeNetwork = NetworkId.TestNet;
+      } else if (addrLower.includes('_undeployed')) {
+        setNetworkId(NetworkId.Undeployed);
+        this.activeNetwork = NetworkId.Undeployed;
+      } else if (addrLower.includes('_devnet')) {
+        setNetworkId(NetworkId.DevNet);
+        this.activeNetwork = NetworkId.DevNet;
+      }
+
+      if (verifiedBadge) verifiedBadge.textContent = `Verified: ${this.activeNetwork}`;
+      if (uiSelect && uiSelect.value !== this.activeNetwork) {
+        uiSelect.value = this.activeNetwork;
+      }
+
+      // Update UI state immediately to Connected
       const shortAddr = realAddress.length > 16 
         ? `${realAddress.substring(0, 8)}...${realAddress.substring(realAddress.length - 6)}` 
         : realAddress;
       if (btnText) btnText.textContent = shortAddr;
       if (btn) {
+        btn.classList.remove('connecting');
         btn.classList.add('connected');
         btn.title = realAddress;
       }
@@ -527,7 +647,9 @@ class ShadowVaultDApp {
       this.log('Lace Wallet', `Wallet Balance: ${realBalance.toString()} Dust`, 'cyan');
 
       if (this.contractAddress) {
-        await this.bindToContract(this.contractAddress);
+        this.bindToContract(this.contractAddress).catch(e => {
+          this.log('Contract', `Auto-bind note: ${e.message}`, 'yellow');
+        });
       }
     } catch (err: any) {
       this.isConnected = false;
@@ -535,11 +657,15 @@ class ShadowVaultDApp {
       this.dappConnectorAPI = null;
       if (btnText) btnText.textContent = 'Connect Lace Wallet';
       btn?.classList.remove('connected');
+      btn?.classList.remove('connecting');
       if (balanceBox) balanceBox.style.display = 'none';
 
       const errorMsg = err?.message || 'Failed to connect Lace wallet.';
       this.showWalletError(errorMsg);
       this.log('Lace Wallet', `Connection failed: ${errorMsg}`, 'red');
+    } finally {
+      this.isConnectingWallet = false;
+      btn?.classList.remove('connecting');
     }
   }
 
@@ -548,9 +674,19 @@ class ShadowVaultDApp {
     try {
       let balance = 0n;
 
-      // 1. Check Dust balance
-      if (typeof this.dappConnectorAPI.getDustBalance === 'function') {
-        const dust = await this.dappConnectorAPI.getDustBalance();
+      // 1. Primary: Check state() directly (no extra permission popups)
+      if (typeof this.dappConnectorAPI.state === 'function') {
+        try {
+          const s = await this.dappConnectorAPI.state();
+          if (s?.balance !== undefined) {
+            balance = BigInt(s.balance);
+          }
+        } catch (e) { }
+      }
+
+      // 2. Fallback: Check Dust balance
+      if (balance === 0n && typeof this.dappConnectorAPI.getDustBalance === 'function') {
+        const dust = await this.dappConnectorAPI.getDustBalance().catch(() => null);
         if (dust?.balance !== undefined) {
           balance = BigInt(dust.balance);
         } else if (typeof dust === 'bigint' || typeof dust === 'number') {
@@ -558,9 +694,9 @@ class ShadowVaultDApp {
         }
       }
 
-      // 2. If Dust balance is 0, check unshielded / NIGHT balances
+      // 3. Fallback: check unshielded / NIGHT balances
       if (balance === 0n && typeof this.dappConnectorAPI.getUnshieldedBalances === 'function') {
-        const unshieldedBal = await this.dappConnectorAPI.getUnshieldedBalances();
+        const unshieldedBal = await this.dappConnectorAPI.getUnshieldedBalances().catch(() => null);
         if (unshieldedBal && typeof unshieldedBal === 'object') {
           const values = Object.values(unshieldedBal);
           if (values.length > 0) {
@@ -581,10 +717,40 @@ class ShadowVaultDApp {
     }
   }
 
+  private syncNetworkWithWallet() {
+    if (this.walletAddress) {
+      const addrLower = this.walletAddress.toLowerCase();
+      let matchedNetwork: string | null = null;
+      if (addrLower.includes('_preview')) {
+        matchedNetwork = NetworkId.Preview;
+      } else if (addrLower.includes('_testnet')) {
+        matchedNetwork = NetworkId.TestNet;
+      } else if (addrLower.includes('_undeployed')) {
+        matchedNetwork = NetworkId.Undeployed;
+      } else if (addrLower.includes('_devnet')) {
+        matchedNetwork = NetworkId.DevNet;
+      }
+
+      if (matchedNetwork) {
+        setNetworkId(matchedNetwork as any);
+        this.activeNetwork = matchedNetwork;
+        const verifiedBadge = document.getElementById('verifiedNetworkName');
+        if (verifiedBadge) verifiedBadge.textContent = `Verified: ${matchedNetwork}`;
+        const uiSelect = document.getElementById('networkSelect') as HTMLSelectElement;
+        if (uiSelect && uiSelect.value !== matchedNetwork) {
+          uiSelect.value = matchedNetwork;
+        }
+      }
+    } else if (this.activeNetwork) {
+      setNetworkId(this.activeNetwork as any);
+    }
+  }
+
   private async assertWalletReadiness() {
     if (!this.isConnected || !this.dappConnectorAPI) {
       throw new Error('Lace Wallet is not connected. Please connect your wallet first.');
     }
+    this.syncNetworkWithWallet();
     await this.refreshWalletBalance();
   }
 
@@ -637,7 +803,22 @@ class ShadowVaultDApp {
     try {
       await this.assertWalletReadiness();
 
-      if (this.activeNetwork) {
+      if (this.walletAddress) {
+        const addrLower = this.walletAddress.toLowerCase();
+        if (addrLower.includes('_preview')) {
+          setNetworkId(NetworkId.Preview);
+          this.activeNetwork = NetworkId.Preview;
+        } else if (addrLower.includes('_testnet')) {
+          setNetworkId(NetworkId.TestNet);
+          this.activeNetwork = NetworkId.TestNet;
+        } else if (addrLower.includes('_undeployed')) {
+          setNetworkId(NetworkId.Undeployed);
+          this.activeNetwork = NetworkId.Undeployed;
+        } else if (addrLower.includes('_devnet')) {
+          setNetworkId(NetworkId.DevNet);
+          this.activeNetwork = NetworkId.DevNet;
+        }
+      } else if (this.activeNetwork) {
         setNetworkId(this.activeNetwork as any);
       }
 
@@ -911,6 +1092,7 @@ class ShadowVaultDApp {
     networkSelect?.addEventListener('change', (e) => {
       const selectedId = (e.target as HTMLSelectElement).value;
       const verifiedId = setNetworkId(selectedId as any);
+      this.activeNetwork = verifiedId;
       const verifiedBadge = document.getElementById('verifiedNetworkName');
       if (verifiedBadge) verifiedBadge.textContent = `Verified: ${verifiedId}`;
       this.log('Network', `Active Network changed to ${verifiedId}`, 'green');

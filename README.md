@@ -83,7 +83,6 @@ midnight-dapp2/
 ├── test/                 # Automated test suites
 │   ├── preprod_e2e.test.ts # 8-step live Midnight Preprod E2E integration test
 │   └── shadow_vault.test.ts # 9-stage contract logic & witness test suite
-├── deployment-receipt.json # Verified contract deployment details
 ├── index.html            # Application markup
 ├── package.json          # Node dependencies & NPM scripts
 ├── tsconfig.json         # TypeScript compiler configuration

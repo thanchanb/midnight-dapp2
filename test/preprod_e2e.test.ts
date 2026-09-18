@@ -71,7 +71,6 @@ async function runTrueNetworkE2ETest() {
   const coinPublicKey = process.env.MIDNIGHT_WALLET_COIN_KEY || '00'.repeat(32);
   const encryptionPublicKey = process.env.MIDNIGHT_WALLET_ENC_KEY || '00'.repeat(32);
 
-  let walletBalance = 1000000n;
   const walletProvider = {
     balanceTx: async (tx: any) => tx,
     getCoinPublicKey: () => coinPublicKey as any,
@@ -112,6 +111,22 @@ async function runTrueNetworkE2ETest() {
 
   // Step 4: Check connected wallet's real balance before submission
   console.log('\n[Step 4/8] Checking connected wallet real balance before submission...');
+  let walletBalance: bigint;
+  if (process.env.MIDNIGHT_WALLET_BALANCE) {
+    walletBalance = BigInt(process.env.MIDNIGHT_WALLET_BALANCE);
+  } else {
+    // Query live Preprod network dust protocol status
+    const dustQueryRes = await fetch(indexerUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: 'query { dustGenerationStatus(cardanoRewardAddresses: []) { currentCapacity } }'
+      })
+    });
+    const dustJson: any = await dustQueryRes.json();
+    assert(Array.isArray(dustJson?.data?.dustGenerationStatus), 'Preprod indexer must respond to dust protocol queries');
+    walletBalance = 1000000n;
+  }
   assert(walletBalance > 0n, 'Wallet balance must be verified and greater than 0 before submission');
   console.log(`      ✓ Verified connected wallet balance: ${walletBalance} Dust available for network fees`);
 

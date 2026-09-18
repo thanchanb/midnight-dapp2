@@ -73,16 +73,35 @@ async function deployShadowVault() {
     privateStoragePasswordProvider: () => 'ShadowVaultDeploySecret2026!'
   });
 
-  const coinPublicKey = process.env.MIDNIGHT_WALLET_COIN_PUBLIC_KEY || '00'.repeat(32);
-  const encryptionPublicKey = process.env.MIDNIGHT_WALLET_ENCRYPTION_PUBLIC_KEY || '00'.repeat(32);
+  const coinPublicKey = process.env.MIDNIGHT_WALLET_COIN_PUBLIC_KEY;
+  const encryptionPublicKey = process.env.MIDNIGHT_WALLET_ENCRYPTION_PUBLIC_KEY;
+
+  if (!coinPublicKey || !encryptionPublicKey) {
+    throw new Error(
+      'Real deployment requires funded wallet keys: MIDNIGHT_WALLET_COIN_PUBLIC_KEY and MIDNIGHT_WALLET_ENCRYPTION_PUBLIC_KEY environment variables are required. Mock fallback keys are disabled.'
+    );
+  }
 
   const walletProvider = {
     balanceTx: async (tx: any) => {
-      // In automated CLI deployment, requires connected wallet or balancing relayer
-      if (process.env.MIDNIGHT_WALLET_SEED) {
-        return tx;
+      if (process.env.MIDNIGHT_BALANCING_URL) {
+        const res = await fetch(process.env.MIDNIGHT_BALANCING_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tx: Buffer.from(tx.serialize()).toString('hex') })
+        });
+        if (!res.ok) throw new Error(`Balancing service failed: ${res.statusText}`);
+        const data: any = await res.json();
+        return (tx.constructor as any).deserialize(
+          (tx as any).markerS?.instance,
+          (tx as any).markerP?.instance,
+          (tx as any).markerB?.instance,
+          Buffer.from(data.tx, 'hex')
+        );
       }
-      return tx;
+      throw new Error(
+        'Real deployment requires wallet balancing. Please configure MIDNIGHT_BALANCING_URL or run within an active wallet provider environment.'
+      );
     },
     getCoinPublicKey: () => coinPublicKey as any,
     getEncryptionPublicKey: () => encryptionPublicKey as any,
@@ -94,7 +113,22 @@ async function deployShadowVault() {
       if (!identifiers || identifiers.length === 0) {
         throw new Error('Transaction submission failed: no valid transaction identifiers generated.');
       }
-      return identifiers[0];
+      const serializedHex = Buffer.from(tx.serialize()).toString('hex');
+      const rpcResponse = await fetch(PREPROD_CONFIG.nodeUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'author_submitExtrinsic',
+          params: [serializedHex]
+        })
+      });
+      const rpcJson: any = await rpcResponse.json().catch(() => null);
+      if (rpcJson?.error) {
+        throw new Error(`Consensus node rejected transaction: ${JSON.stringify(rpcJson.error)}`);
+      }
+      return rpcJson?.result ? rpcJson.result.replace(/^0x/, '') : identifiers[0];
     }
   };
 

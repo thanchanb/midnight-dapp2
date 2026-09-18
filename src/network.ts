@@ -39,14 +39,21 @@ export function getNetworkId(): string {
 
 export function getNetworkDetails(id?: NetworkIdType) {
   const activeId = id || getNetworkId();
+  const lower = String(activeId).toLowerCase();
+  const isPreview = lower.includes('preview');
+  const subdomain = isPreview ? 'preview' : 'preprod';
   return {
     id: activeId,
-    name: activeId === NetworkId.TestNet ? 'Midnight Preprod Testnet' : `${activeId} Environment`,
-    rpcUrl: 'https://rpc.preprod.midnight.network',
-    indexerUrl: 'https://indexer.preprod.midnight.network/api/v4/graphql',
-    indexerWsUrl: 'wss://indexer.preprod.midnight.network/api/v4/graphql/ws',
+    name: isPreview 
+      ? 'Midnight Preview Testnet' 
+      : activeId === NetworkId.TestNet 
+        ? 'Midnight Preprod Testnet' 
+        : `${activeId} Environment`,
+    rpcUrl: `https://rpc.${subdomain}.midnight.network`,
+    indexerUrl: `https://indexer.${subdomain}.midnight.network/api/v4/graphql`,
+    indexerWsUrl: `wss://indexer.${subdomain}.midnight.network/api/v4/graphql/ws`,
     proofServerUrl: 'http://localhost:6300',
-    isPreprod: activeId === NetworkId.TestNet || activeId === NetworkId.Undeployed,
+    isPreprod: lower.includes('preprod') || activeId === NetworkId.TestNet || activeId === NetworkId.Undeployed || isPreview,
   };
 }
 
