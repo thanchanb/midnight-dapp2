@@ -60,9 +60,9 @@ export circuit verifyAndClaim(): [] {
 export circuit revokeVault(): [] {
     assert(state == VaultState.active, "Vault must be active to revoke");
     
-    // Genuine Owner Authorization Check
+    // Genuine Owner Authorization Check (Zero-Knowledge equality proof, no on-chain disclosure)
     const caller = ownerKey();
-    assert(disclose(caller) == owner, "Unauthorized: caller is not the vault owner");
+    assert(caller == owner, "Unauthorized: caller is not the vault owner");
     
     state = VaultState.revoked;
     counter = (counter + 1) as Uint<64>;

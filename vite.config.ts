@@ -8,12 +8,11 @@ export default defineConfig({
   root: './',
   plugins: [
     wasm(),
-    topLevelAwait()
   ],
   build: {
     outDir: 'dist',
     emptyOutDir: true,
-    target: 'es2022',
+    target: 'esnext',
   },
   server: {
     port: 5173,
@@ -27,6 +26,9 @@ export default defineConfig({
     alias: {
       '@managed': path.resolve(import.meta.dirname || '.', './managed'),
       buffer: 'buffer',
+      events: 'events',
+      assert: 'assert',
+      util: 'util',
     },
   },
 });

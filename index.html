@@ -146,6 +146,15 @@
             </div>
 
             <div class="form-group">
+              <label for="initSalt">User Private Salt (32-byte Hex)</label>
+              <div class="input-wrapper" style="display: flex; gap: 0.5rem; align-items: center;">
+                <input type="text" id="initSalt" placeholder="Enter 32-byte hex salt or generate" style="flex: 1;">
+                <button class="btn-text" id="btnGenSalt" type="button" style="padding: 0.5rem 0.75rem; font-size: 0.8rem; background: var(--bg-surface-2); border: 1px solid var(--border-color); border-radius: 6px; color: var(--accent-cyan); cursor: pointer; white-space: nowrap;">🎲 Random</button>
+              </div>
+              <small>Cryptographic salt combined with passphrase to form on-chain commitment via <code>persistentHash</code>.</small>
+            </div>
+
+            <div class="form-group">
               <label for="initOwnerId">Vault Owner Public Identifier (32-byte Hex)</label>
               <input type="text" id="initOwnerId" placeholder="Enter 32-byte hex owner ID">
             </div>
@@ -179,7 +188,7 @@
 
           <!-- Tab Content: Revoke -->
           <div class="tab-content" id="tab-revoke">
-            <p class="tab-desc">Transition vault status to revoked if escrow conditions are violated (requires owner witness authorization).</p>
+            <p class="tab-desc">Transition vault status to revoked if escrow conditions are violated. Evaluated in zero-knowledge via private owner witness without on-chain disclosure.</p>
             <button id="btnExecRevoke" class="btn btn-danger btn-block">
               <span>🚫 Execute revokeVault Circuit</span>
             </button>

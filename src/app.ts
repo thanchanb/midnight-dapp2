@@ -26,6 +26,10 @@ import {
   createProverKey,
   createZKIR
 } from '@midnight-ntwrk/midnight-js-types';
+import * as compactRuntime from '@midnight-ntwrk/compact-runtime';
+import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
+import { dappConnectorProofProvider } from '@midnight-ntwrk/midnight-js-dapp-connector-proof-provider';
+import { CostModel } from '@midnight-ntwrk/ledger-v8';
 
 export class BrowserZkConfigProvider extends ZKConfigProvider<string> {
   private baseUrl: string;
@@ -81,73 +85,26 @@ declare global {
   }
 }
 
-// In-memory private state provider for client session
-class ClientPrivateStateProvider implements PrivateStateProvider<string, any> {
-  private stateStore = new Map<string, any>();
-  private signingKeys = new Map<string, string>();
-  private activeContractAddress: string | null = null;
-
-  async get(id: string): Promise<any> {
-    return this.stateStore.get(id) ?? null;
-  }
-
-  async set(id: string, state: any): Promise<void> {
-    this.stateStore.set(id, state);
-  }
-
-  async remove(id: string): Promise<void> {
-    this.stateStore.delete(id);
-  }
-
-  async clear(): Promise<void> {
-    this.stateStore.clear();
-  }
-
-  async getSigningKey(address: string): Promise<string | null> {
-    return this.signingKeys.get(address) ?? null;
-  }
-
-  async setSigningKey(address: string, signingKey: string): Promise<void> {
-    this.signingKeys.set(address, signingKey);
-  }
-
-  async removeSigningKey(address: string): Promise<void> {
-    this.signingKeys.delete(address);
-  }
-
-  async clearSigningKeys(): Promise<void> {
-    this.signingKeys.clear();
-  }
-
-  async exportPrivateStates(): Promise<any> {
-    return Array.from(this.stateStore.entries()).map(([id, state]) => ({ id, state }));
-  }
-
-  async importPrivateStates(exportData: any, _options?: any): Promise<any> {
-    const states = Array.isArray(exportData) ? exportData : (exportData?.states ?? []);
-    for (const s of states) {
-      this.stateStore.set(s.id, s.state);
+// Secure session-managed storage encryption key satisfying Midnight password policy
+// (Minimum 16 characters, >= 3 character classes, no sequential or repeating patterns)
+function getOrCreatePrivateStatePassword(): string {
+  const STORAGE_KEY = 'shadow_vault_session_enc_key';
+  try {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      let pwd = window.sessionStorage.getItem(STORAGE_KEY);
+      if (pwd && pwd.length >= 24) return pwd;
+      const array = new Uint8Array(16);
+      crypto.getRandomValues(array);
+      const hex = Array.from(array, b => b.toString(16).padStart(2, '0')).join('');
+      pwd = `Mdn!${hex.slice(0, 12)}@${hex.slice(12, 24)}#Z9`;
+      window.sessionStorage.setItem(STORAGE_KEY, pwd);
+      return pwd;
     }
-    return { imported: states.length, failed: [] };
+  } catch (e) {
+    // Restricted storage environment
   }
-
-  async exportSigningKeys(): Promise<any> {
-    return Array.from(this.signingKeys.entries()).map(([address, key]) => ({ address, signingKey: key }));
-  }
-
-  async importSigningKeys(exportData: any, _options?: any): Promise<any> {
-    const keys = Array.isArray(exportData) ? exportData : (exportData?.keys ?? []);
-    for (const k of keys) {
-      this.signingKeys.set(k.address, k.signingKey);
-    }
-    return { imported: keys.length, failed: [] };
-  }
-
-  setContractAddress(address: string): void {
-    this.activeContractAddress = address;
-  }
+  return 'Mdn!Priv8Vault2026#SecStorageState$';
 }
-
 
 class ShadowVaultDApp {
   private isConnected: boolean = false;
@@ -165,7 +122,7 @@ class ShadowVaultDApp {
   private publicDataProvider: any = null;
   private zkConfigProvider: ZKConfigProvider<string> | null = null;
   private proofProvider: any = null;
-  private privateStateProvider: ClientPrivateStateProvider = new ClientPrivateStateProvider();
+  private privateStateProvider: any = null;
 
   // On-chain ledger state from indexer
   private counter: bigint | null = null;
@@ -178,10 +135,23 @@ class ShadowVaultDApp {
 
   constructor() {
     setNetworkId(NetworkId.TestNet);
+    this.initPrivateStateProvider();
     this.initProviders();
     this.initWalletDiscovery();
     this.bindDOMEvents();
     this.log('System', 'ShadowVault initialized on Midnight Preprod Testnet.', 'green');
+  }
+
+  private initPrivateStateProvider(accountId: string = 'default_vault_user') {
+    try {
+      this.privateStateProvider = levelPrivateStateProvider({
+        midnightDbName: 'shadow_vault_persistent_db',
+        accountId: accountId,
+        privateStoragePasswordProvider: () => getOrCreatePrivateStatePassword(),
+      });
+    } catch (err: any) {
+      console.warn('Failed to initialize Level private state provider, continuing:', err);
+    }
   }
 
   private initWalletDiscovery() {
@@ -235,7 +205,8 @@ class ShadowVaultDApp {
   private createCompiledContract(): any {
     const witnesses: Witnesses<any> = {
       secretWitness: (context) => {
-        const passphraseInput = (document.getElementById('claimPassphrase') as HTMLInputElement)?.value;
+        const passphraseInput = (document.getElementById('claimPassphrase') as HTMLInputElement)?.value ||
+                                (document.getElementById('initPassphrase') as HTMLInputElement)?.value;
         if (!passphraseInput) {
           throw new Error('Private witness error: secret passphrase input is empty.');
         }
@@ -243,7 +214,8 @@ class ShadowVaultDApp {
         return [context.privateState, secretBytes];
       },
       userSalt: (context) => {
-        const saltHex = (document.getElementById('claimSalt') as HTMLInputElement)?.value;
+        const saltHex = (document.getElementById('claimSalt') as HTMLInputElement)?.value ||
+                        (document.getElementById('initSalt') as HTMLInputElement)?.value;
         if (!saltHex) {
           throw new Error('Private witness error: salt input is empty.');
         }
@@ -251,10 +223,13 @@ class ShadowVaultDApp {
       },
       ownerKey: (context) => {
         const ownerInput = (document.getElementById('initOwnerId') as HTMLInputElement)?.value;
-        if (!ownerInput) {
-          throw new Error('Witness error: owner public identifier input is empty.');
+        if (ownerInput) {
+          return [context.privateState, this.hexToBytes(ownerInput, 32)];
         }
-        return [context.privateState, this.hexToBytes(ownerInput, 32)];
+        if (this.coinPublicKey) {
+          return [context.privateState, this.hexToBytes(this.coinPublicKey, 32)];
+        }
+        throw new Error('Witness error: owner public identifier input is empty.');
       }
     };
 
@@ -263,9 +238,18 @@ class ShadowVaultDApp {
     );
   }
 
-  private constructMidnightProviders(): MidnightProviders<any, any, any> {
+  private async constructMidnightProviders(): Promise<MidnightProviders<any, any, any>> {
     if (!this.dappConnectorAPI) {
       throw new Error('Cannot construct providers: Lace Wallet is not connected.');
+    }
+    if ((!this.coinPublicKey || !this.encryptionPublicKey) && typeof this.dappConnectorAPI.getShieldedAddresses === 'function') {
+      try {
+        const shielded = await this.dappConnectorAPI.getShieldedAddresses();
+        if (shielded?.shieldedCoinPublicKey) this.coinPublicKey = shielded.shieldedCoinPublicKey;
+        if (shielded?.shieldedEncryptionPublicKey) this.encryptionPublicKey = shielded.shieldedEncryptionPublicKey;
+      } catch (e) {
+        console.warn('Auto-query getShieldedAddresses in constructMidnightProviders note:', e);
+      }
     }
     if (!this.coinPublicKey || !this.encryptionPublicKey) {
       throw new Error('Cannot construct providers: Lace Wallet has not provided active Coin or Encryption public keys. Ensure Lace wallet is unlocked and selected.');
@@ -304,11 +288,25 @@ class ShadowVaultDApp {
     const netDetails = getNetworkDetails(this.activeNetwork);
     const activePublicDataProvider = indexerPublicDataProvider(netDetails.indexerUrl, netDetails.indexerWsUrl);
 
+    let activeProofProvider = this.proofProvider;
+    if (this.dappConnectorAPI && typeof (this.dappConnectorAPI as any).getProvingProvider === 'function') {
+      try {
+        activeProofProvider = await dappConnectorProofProvider(
+          this.dappConnectorAPI as any,
+          this.zkConfigProvider!,
+          CostModel.initialCostModel()
+        );
+        this.log('Prover', 'Initialized Lace Wallet DApp Connector proof provider.', 'cyan');
+      } catch (err: any) {
+        console.warn('Could not initialize dappConnectorProofProvider, using HTTP proof provider:', err);
+      }
+    }
+
     return {
       privateStateProvider: this.privateStateProvider,
       publicDataProvider: activePublicDataProvider,
       zkConfigProvider: this.zkConfigProvider!,
-      proofProvider: this.proofProvider,
+      proofProvider: activeProofProvider,
       walletProvider,
       midnightProvider,
     };
@@ -528,68 +526,54 @@ class ShadowVaultDApp {
       let realAddress = '';
       let realBalance: bigint = 0n;
 
+      // Helper for async wallet API calls with 15s timeout
+      const safeWalletCall = async <T>(fn: () => Promise<T>, timeoutMs = 15000): Promise<T | null> => {
+        try {
+          return await Promise.race([
+            fn(),
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs))
+          ]);
+        } catch (e) {
+          return null;
+        }
+      };
+
       // 1. Official getShieldedAddresses()
       if (typeof api.getShieldedAddresses === 'function') {
-        try {
-          const shielded = await Promise.race([
-            api.getShieldedAddresses(),
-            new Promise((_, r) => setTimeout(() => r(null), 3000))
-          ]);
-          if (shielded?.shieldedAddress) {
-            realAddress = shielded.shieldedAddress;
-            if (shielded.shieldedCoinPublicKey) this.coinPublicKey = shielded.shieldedCoinPublicKey;
-            if (shielded.shieldedEncryptionPublicKey) this.encryptionPublicKey = shielded.shieldedEncryptionPublicKey;
-          }
-        } catch (e) {
-          console.warn('getShieldedAddresses note:', e);
+        const shielded = await safeWalletCall(() => api.getShieldedAddresses());
+        if (shielded?.shieldedAddress) {
+          realAddress = shielded.shieldedAddress;
+          if (shielded.shieldedCoinPublicKey) this.coinPublicKey = shielded.shieldedCoinPublicKey;
+          if (shielded.shieldedEncryptionPublicKey) this.encryptionPublicKey = shielded.shieldedEncryptionPublicKey;
         }
       }
 
       // 2. Official getUnshieldedAddress()
       if (!realAddress && typeof api.getUnshieldedAddress === 'function') {
-        try {
-          const unshielded = await Promise.race([
-            api.getUnshieldedAddress(),
-            new Promise((_, r) => setTimeout(() => r(null), 3000))
-          ]);
-          if (unshielded?.unshieldedAddress) {
-            realAddress = unshielded.unshieldedAddress;
-          }
-        } catch (e) {
-          console.warn('getUnshieldedAddress note:', e);
+        const unshielded = await safeWalletCall(() => api.getUnshieldedAddress());
+        if (unshielded?.unshieldedAddress) {
+          realAddress = unshielded.unshieldedAddress;
         }
       }
 
       // 3. Official getDustBalance()
       if (typeof api.getDustBalance === 'function') {
-        try {
-          const dust = await Promise.race([
-            api.getDustBalance(),
-            new Promise((_, r) => setTimeout(() => r(null), 3000))
-          ]);
-          if (dust?.balance !== undefined) {
-            realBalance = BigInt(dust.balance);
-          } else if (typeof dust === 'bigint' || typeof dust === 'number') {
-            realBalance = BigInt(dust);
-          }
-        } catch (e) {
-          console.warn('getDustBalance note:', e);
+        const dust = await safeWalletCall(() => api.getDustBalance());
+        if (dust?.balance !== undefined) {
+          realBalance = BigInt(dust.balance);
+        } else if (typeof dust === 'bigint' || typeof dust === 'number') {
+          realBalance = BigInt(dust);
         }
       }
 
       // 4. Fallback to state() if available
       if (!realAddress && typeof api.state === 'function') {
-        try {
-          const s = await Promise.race([
-            api.state(),
-            new Promise((_, r) => setTimeout(() => r(null), 3000))
-          ]);
-          if (s?.address) realAddress = s.address;
-          else if (s?.shieldedAddress) realAddress = s.shieldedAddress;
-          if (realBalance === 0n && s?.balance !== undefined) {
-            realBalance = BigInt(s.balance);
-          }
-        } catch (e) { }
+        const s = await safeWalletCall(() => api.state());
+        if (s?.address) realAddress = s.address;
+        else if (s?.shieldedAddress) realAddress = s.shieldedAddress;
+        if (realBalance === 0n && s?.balance !== undefined) {
+          realBalance = BigInt(s.balance);
+        }
       }
 
       if (!realAddress) {
@@ -603,6 +587,7 @@ class ShadowVaultDApp {
       this.walletAddress = realAddress;
       this.walletDustBalance = realBalance;
       this.isConnected = true;
+      this.initPrivateStateProvider(realAddress);
 
       // Ensure active NetworkId strictly matches the address encoding
       const addrLower = realAddress.toLowerCase();
@@ -640,6 +625,12 @@ class ShadowVaultDApp {
       if (balanceBox && balanceVal) {
         balanceBox.style.display = 'flex';
         balanceVal.textContent = `${realBalance.toString()} Dust`;
+      }
+
+      // Prefill owner ID field if empty
+      const ownerInputEl = document.getElementById('initOwnerId') as HTMLInputElement;
+      if (ownerInputEl && !ownerInputEl.value && this.coinPublicKey) {
+        ownerInputEl.value = this.coinPublicKey.substring(0, 64);
       }
 
       this.clearWalletError();
@@ -770,7 +761,7 @@ class ShadowVaultDApp {
 
     try {
       const compiledContract = this.createCompiledContract();
-      const providers = this.constructMidnightProviders();
+      const providers = await this.constructMidnightProviders();
 
       this.boundContract = await findDeployedContract(providers, {
         compiledContract,
@@ -826,7 +817,7 @@ class ShadowVaultDApp {
       this.updatePrivacyStatus('Preparing Constructor...', 'Generating Prover Keys...', 'Deploying On-Chain...');
 
       const compiledContract = this.createCompiledContract();
-      const providers = this.constructMidnightProviders();
+      const providers = await this.constructMidnightProviders();
 
       this.log('Prover', 'Synthesizing deployment ZK proof on Actix proof server (port 6300)...', 'cyan');
 
@@ -986,6 +977,7 @@ class ShadowVaultDApp {
 
   // Task 2, 3, 4: Execute initializeVault via Midnight.js generated contract binding
   public async handleInitializeVault() {
+    this.clearWalletError();
     try {
       await this.assertWalletReadiness();
       if (!this.boundContract || !this.contractAddress) {
@@ -994,11 +986,12 @@ class ShadowVaultDApp {
 
       const passphraseInput = (document.getElementById('initPassphrase') as HTMLInputElement).value;
       const ownerInput = (document.getElementById('initOwnerId') as HTMLInputElement).value;
-      const saltInput = (document.getElementById('claimSalt') as HTMLInputElement).value;
+      const saltInput = ((document.getElementById('initSalt') as HTMLInputElement)?.value || 
+                         (document.getElementById('claimSalt') as HTMLInputElement)?.value);
 
       if (!passphraseInput) throw new Error('Please enter a secret vault passphrase.');
       if (!ownerInput) throw new Error('Please enter the owner public identifier.');
-      if (!saltInput) throw new Error('Please enter a salt.');
+      if (!saltInput) throw new Error('Please enter a salt or click "🎲 Random".');
 
       this.log('Circuit', 'Executing initializeVault circuit via generated binding callTx.initializeVault()...', 'cyan');
       this.updatePrivacyStatus('Hashing Commitment...', '⚡ Proving on Proof Server...', 'Broadcasting Tx...');
@@ -1007,38 +1000,71 @@ class ShadowVaultDApp {
       const secretBytes = new TextEncoder().encode(passphraseInput.padEnd(32, '0')).slice(0, 32);
       const saltBytes = this.hexToBytes(saltInput, 32);
 
-      // Derive commitment for initial deposit
-      const combined = new Uint8Array(64);
-      combined.set(secretBytes, 0);
-      combined.set(saltBytes, 32);
+      // Compute commitment with exact semantics matching Compact circuit: persistentHash<Vector<2, Bytes<32>>>([secret, salt])
+      const commitment = compactRuntime.persistentHash(
+        new compactRuntime.CompactTypeVector(2, new compactRuntime.CompactTypeBytes(32)),
+        [secretBytes, saltBytes]
+      );
 
-      // Call circuit through generated contract binding
-      const callResult = await this.boundContract.callTx.initializeVault(combined.slice(0, 32), ownerBytes);
+      const commitmentHex = this.bytesToHex(commitment);
+      this.log('Commitment', `Computed on-chain commitment digest: ${commitmentHex}`, 'cyan');
+      const dispCommitment = document.getElementById('displayCommitmentHash');
+      if (dispCommitment) dispCommitment.textContent = commitmentHex;
+
+      // Persist private state in persistent encrypted storage
+      if (this.privateStateProvider) {
+        try {
+          await this.privateStateProvider.set('shadowVaultPrivateState', {
+            passphrase: passphraseInput,
+            saltHex: this.bytesToHex(saltBytes),
+            ownerHex: ownerInput,
+            commitmentHex
+          });
+        } catch (e) {
+          console.warn('Private state persistence note:', e);
+        }
+      }
+
+      // Sync salt to claim tab for seamless user experience
+      const claimSaltInput = document.getElementById('claimSalt') as HTMLInputElement;
+      if (claimSaltInput && !claimSaltInput.value) {
+        claimSaltInput.value = this.bytesToHex(saltBytes);
+      }
+
+      // Call circuit through generated contract binding with exact computed commitment
+      const callResult = await this.boundContract.callTx.initializeVault(commitment, ownerBytes);
       const realTxId = callResult.public.txId;
       const blockHeight = callResult.public.blockHeight;
 
       this.log('Transaction', `Transaction confirmed on-chain! Tx ID: ${realTxId} (Block #${blockHeight})`, 'yellow');
 
       await this.queryIndexerState();
-      this.updatePrivacyStatus('🔒 Secret In Client Memory', '⚡ ZK Proof Synthesized', '📜 Vault Active on Ledger');
+      this.updatePrivacyStatus('🔒 Secret In Persistent Storage', '⚡ ZK Proof Synthesized', '📜 Vault Active on Ledger');
       this.log('Circuit', `initializeVault SUCCESS! Vault State: VaultState.active (${this.currentStateEnum})`, 'green');
 
     } catch (err: any) {
-      this.log('Error', `initializeVault failed: ${err.message}`, 'red');
-      alert(`Initialization Failed: ${err.message}`);
+      const errorMsg = err?.message || 'initializeVault failed.';
+      this.log('Error', `initializeVault failed: ${errorMsg}`, 'red');
+      this.showWalletError(`Initialization Failed: ${errorMsg}`);
     }
   }
 
   // Task 2, 3, 4: Execute verifyAndClaim via Midnight.js generated contract binding
   public async handleVerifyAndClaim() {
+    this.clearWalletError();
     try {
       await this.assertWalletReadiness();
       if (!this.boundContract || !this.contractAddress) {
         throw new Error('No contract joined. Please specify or deploy a contract first.');
       }
 
-      const passphraseInput = (document.getElementById('claimPassphrase') as HTMLInputElement).value;
+      const passphraseInput = (document.getElementById('claimPassphrase') as HTMLInputElement).value ||
+                              (document.getElementById('initPassphrase') as HTMLInputElement)?.value;
+      const saltInput = (document.getElementById('claimSalt') as HTMLInputElement).value ||
+                        (document.getElementById('initSalt') as HTMLInputElement)?.value;
+
       if (!passphraseInput) throw new Error('Please enter matching secret passphrase for ZK claim.');
+      if (!saltInput) throw new Error('Please enter matching salt for ZK claim.');
 
       this.log('Circuit', 'Executing verifyAndClaim circuit proving preimage knowledge in ZK...', 'cyan');
       this.updatePrivacyStatus('Witness Extracted', '⚡ Real Prover Synthesizing Proof...', 'Verifying On-Chain...');
@@ -1054,21 +1080,23 @@ class ShadowVaultDApp {
       this.log('Circuit', `verifyAndClaim SUCCESS! Knowledge proved in ZK without revealing raw secret!`, 'green');
 
     } catch (err: any) {
-      this.log('Error', `verifyAndClaim failed: ${err.message}`, 'red');
-      alert(`Claim Failed: ${err.message}`);
+      const errorMsg = err?.message || 'verifyAndClaim failed.';
+      this.log('Error', `verifyAndClaim failed: ${errorMsg}`, 'red');
+      this.showWalletError(`Claim Failed: ${errorMsg}`);
     }
   }
 
-  // Task 2, 3, 4: Execute revokeVault via Midnight.js generated contract binding
+  // Task 2, 3, 4: Execute revokeVault via Midnight.js generated contract binding (caller identity kept 100% private)
   public async handleRevokeVault() {
+    this.clearWalletError();
     try {
       await this.assertWalletReadiness();
       if (!this.boundContract || !this.contractAddress) {
         throw new Error('No contract joined. Please specify or deploy a contract first.');
       }
 
-      this.log('Circuit', 'Executing revokeVault circuit with owner authorization witness check...', 'cyan');
-      this.updatePrivacyStatus('Owner Key Loaded', '⚡ Proof Server Synthesis...', 'Submitting Revocation...');
+      this.log('Circuit', 'Executing revokeVault circuit with private owner authorization in ZK (no caller disclosure)...', 'cyan');
+      this.updatePrivacyStatus('Owner Witness Evaluated', '⚡ Prover Synthesizing Proof...', 'Submitting Revocation...');
 
       const callResult = await this.boundContract.callTx.revokeVault();
       const realTxId = callResult.public.txId;
@@ -1077,16 +1105,29 @@ class ShadowVaultDApp {
       this.log('Transaction', `Transaction confirmed on-chain! Tx ID: ${realTxId} (Block #${blockHeight})`, 'yellow');
 
       await this.queryIndexerState();
-      this.updatePrivacyStatus('🔒 Authorized Caller', '⚡ Revocation Proof Verified', '📜 Vault Revoked');
-      this.log('Circuit', `revokeVault SUCCESS! Vault State: VaultState.revoked (${this.currentStateEnum})`, 'green');
+      this.updatePrivacyStatus('🔒 Caller Identity Private', '⚡ ZK Proof Verified', '📜 Vault Revoked');
+      this.log('Circuit', `revokeVault SUCCESS! Vault State: VaultState.revoked (${this.currentStateEnum}) without on-chain caller disclosure`, 'green');
 
     } catch (err: any) {
-      this.log('Error', `revokeVault failed: ${err.message}`, 'red');
-      alert(`Revoke Failed: ${err.message}`);
+      const errorMsg = err?.message || 'revokeVault failed.';
+      this.log('Error', `revokeVault failed: ${errorMsg}`, 'red');
+      this.showWalletError(`Revocation Failed: ${errorMsg}`);
     }
   }
 
   private bindDOMEvents() {
+    // Random Salt Generator
+    document.getElementById('btnGenSalt')?.addEventListener('click', () => {
+      const array = new Uint8Array(32);
+      crypto.getRandomValues(array);
+      const saltHex = this.bytesToHex(array);
+      const initSaltInput = document.getElementById('initSalt') as HTMLInputElement;
+      if (initSaltInput) initSaltInput.value = saltHex;
+      const claimSaltInput = document.getElementById('claimSalt') as HTMLInputElement;
+      if (claimSaltInput) claimSaltInput.value = saltHex;
+      this.log('Salt', `Generated 32-byte cryptographic salt: ${saltHex.substring(0, 16)}...`, 'cyan');
+    });
+
     // Network Selector
     const networkSelect = document.getElementById('networkSelect') as HTMLSelectElement;
     networkSelect?.addEventListener('change', (e) => {

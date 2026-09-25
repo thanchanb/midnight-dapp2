@@ -67,10 +67,11 @@ async function deployShadowVault() {
     PREPROD_CONFIG.proofServerUrl,
     zkConfigProvider
   );
+  const deployPassword = process.env.MIDNIGHT_STORAGE_PASSWORD || `SV_Deploy_${Date.now()}_!9aZSecKey`;
   const privateStateProvider = levelPrivateStateProvider({
     midnightDbName: 'shadow_vault_deploy_db',
     accountId: 'deployer',
-    privateStoragePasswordProvider: () => 'ShadowVaultDeploySecret2026!'
+    privateStoragePasswordProvider: () => deployPassword
   });
 
   const coinPublicKey = process.env.MIDNIGHT_WALLET_COIN_PUBLIC_KEY;
