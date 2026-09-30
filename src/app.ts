@@ -5,7 +5,8 @@ import {
   getNetworkId,
   NetworkId,
   validateNetworkId,
-  getNetworkDetails
+  getNetworkDetails,
+  toLaceNetworkId
 } from './network.js';
 import { Contract, AuctionState, ledger, type Ledger, type Witnesses } from '../managed/contract/index.js';
 import {
@@ -317,14 +318,15 @@ export class ShadowVaultAuctionDApp {
 
       let api: any = null;
       if (typeof walletEntry.connect === 'function') {
-        const netHint = this.activeNetwork || 'testnet';
+        const primaryNet = toLaceNetworkId(this.activeNetwork);
+        const fallbackNet = primaryNet === 'preprod' ? 'testnet' : 'preprod';
         try {
-          api = await walletEntry.connect(netHint);
-        } catch {
+          api = await walletEntry.connect(primaryNet);
+        } catch (firstErr: any) {
           try {
-            api = await walletEntry.connect(netHint.toLowerCase());
+            api = await walletEntry.connect(fallbackNet);
           } catch {
-            api = await walletEntry.connect();
+            throw firstErr;
           }
         }
       } else if (typeof walletEntry.enable === 'function') {

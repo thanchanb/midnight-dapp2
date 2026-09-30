@@ -179,6 +179,22 @@ export function getNetworkId(): string {
   return currentNetworkId;
 }
 
+/**
+ * Normalizes any network identifier or alias into an exact network ID accepted by Midnight Lace wallet:
+ * ['mainnet', 'testnet', 'devnet', 'qanet', 'undeployed', 'preview', 'preprod']
+ */
+export function toLaceNetworkId(network: string): string {
+  if (!network) return 'preprod';
+  const clean = network.trim().toLowerCase();
+  if (clean.includes('preview')) return 'preview';
+  if (clean.includes('preprod') || clean.includes('testnet')) return 'preprod';
+  if (clean.includes('devnet')) return 'devnet';
+  if (clean.includes('undeployed') || clean.includes('local')) return 'undeployed';
+  if (clean.includes('mainnet')) return 'mainnet';
+  if (clean.includes('qanet')) return 'qanet';
+  return 'preprod';
+}
+
 export function getNetworkDetails(id?: NetworkIdType): NetworkConfig & { id: string } {
   const activeId = id || getNetworkId();
   const env = canonicalizeNetwork(String(activeId));

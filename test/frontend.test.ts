@@ -16,6 +16,7 @@ import {
   validateIndexerNetworkIdentity,
   validateProofServerConnection,
   validateIndexerConnection,
+  toLaceNetworkId,
 } from '../src/network.js';
 import {
   validateBidFormInputs,
@@ -195,6 +196,18 @@ describe('Midnight ShadowVault Frontend & UI Component Test Suite (Vitest + JSDO
       const badge = document.getElementById('verifiedNetworkName');
       expect(badge?.textContent).toBe('Verified: preview');
       expect(getNetworkId()).toBe(NetworkId.Preview);
+    });
+
+    it('2F. toLaceNetworkId strictly normalizes to valid Lace network IDs', () => {
+      expect(toLaceNetworkId('TestNet')).toBe('preprod');
+      expect(toLaceNetworkId('preprod')).toBe('preprod');
+      expect(toLaceNetworkId('testnet')).toBe('preprod');
+      expect(toLaceNetworkId('preview')).toBe('preview');
+      expect(toLaceNetworkId('Undeployed')).toBe('undeployed');
+      expect(toLaceNetworkId('DevNet')).toBe('devnet');
+      expect(toLaceNetworkId('MainNet')).toBe('mainnet');
+      expect(toLaceNetworkId('')).toBe('preprod');
+      expect(toLaceNetworkId(undefined as any)).toBe('preprod');
     });
   });
 
