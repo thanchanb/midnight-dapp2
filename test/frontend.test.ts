@@ -149,6 +149,53 @@ describe('Midnight ShadowVault Frontend & UI Component Test Suite (Vitest + JSDO
       expect(balanceVal?.textContent).toBe('75000000 Dust');
       expect(banner?.style.display).toBe('none');
     });
+
+    it('2D. Connected State: Connects via official DApp connector spec (connect, getUnshieldedAddress, getDustBalance)', async () => {
+      const mockUnshielded = 'mn1official_preprod_wallet_address_987654321';
+      const mockShielded = {
+        shieldedAddress: 'mn1shielded_wallet_addr_123',
+        shieldedCoinPublicKey: 'aa'.repeat(32),
+        shieldedEncryptionPublicKey: 'bb'.repeat(32),
+      };
+
+      (window as any).midnight = {
+        lace: {
+          name: 'Midnight Lace Official',
+          connect: vi.fn().mockResolvedValue({
+            getUnshieldedAddress: vi.fn().mockResolvedValue({ unshieldedAddress: mockUnshielded }),
+            getShieldedAddresses: vi.fn().mockResolvedValue(mockShielded),
+            getDustBalance: vi.fn().mockResolvedValue({ cap: 100000000n, balance: 42000000n }),
+            getConfiguration: vi.fn().mockResolvedValue({ networkId: 'preprod' }),
+          }),
+        },
+      };
+
+      await app.connectWallet();
+
+      const btn = document.getElementById('connectWalletBtn');
+      const btnText = document.getElementById('walletBtnText');
+      const balanceBox = document.getElementById('walletBalanceBox');
+      const balanceVal = document.getElementById('walletBalanceVal');
+      const banner = document.getElementById('walletErrorBanner');
+
+      expect(btn?.classList.contains('connected')).toBe(true);
+      expect(btnText?.textContent).toBe('mn1offic...4321');
+      expect(balanceBox?.style.display).toBe('flex');
+      expect(balanceVal?.textContent).toBe('42000000 Dust');
+      expect(banner?.style.display).toBe('none');
+    });
+
+    it('2E. Network Switch: UI dropdown updates active network and re-initializes providers', () => {
+      const select = document.getElementById('networkSelect') as HTMLSelectElement;
+      if (select) {
+        select.value = 'preview';
+        select.dispatchEvent(new Event('change'));
+      }
+
+      const badge = document.getElementById('verifiedNetworkName');
+      expect(badge?.textContent).toBe('Verified: preview');
+      expect(getNetworkId()).toBe(NetworkId.Preview);
+    });
   });
 
   // --------------------------------------------------------------------------

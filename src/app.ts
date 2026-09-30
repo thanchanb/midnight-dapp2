@@ -28,10 +28,26 @@ declare global {
   interface Window {
     midnight?: {
       mnLace?: {
-        enable: () => Promise<ConnectedAPI>;
-        isEnabled: () => Promise<boolean>;
+        name?: string;
+        apiVersion?: string;
+        icon?: string;
+        enable?: () => Promise<ConnectedAPI>;
+        connect?: (networkId?: string) => Promise<ConnectedAPI>;
+        isEnabled?: () => Promise<boolean>;
+        isConnected?: () => Promise<boolean>;
       };
+      lace?: {
+        name?: string;
+        apiVersion?: string;
+        icon?: string;
+        enable?: () => Promise<ConnectedAPI>;
+        connect?: (networkId?: string) => Promise<ConnectedAPI>;
+        isEnabled?: () => Promise<boolean>;
+        isConnected?: () => Promise<boolean>;
+      };
+      [key: string]: any;
     };
+    shadowVaultApp?: any;
   }
 }
 
@@ -188,13 +204,32 @@ export class ShadowVaultAuctionDApp {
     }
 
     const walletProvider = {
-      balanceTx: (tx: any) => this.dappConnectorAPI!.balanceTx(tx),
+      balanceTx: async (tx: any, ttl?: Date) => {
+        if (typeof this.dappConnectorAPI!.balanceTx === 'function') {
+          return await this.dappConnectorAPI!.balanceTx(tx, ttl);
+        }
+        if (typeof this.dappConnectorAPI!.balanceUnsealedTransaction === 'function') {
+          const serialized = typeof tx === 'string' ? tx : (tx.serialize ? tx.serialize() : JSON.stringify(tx));
+          const res = await this.dappConnectorAPI!.balanceUnsealedTransaction(serialized, { payFees: true });
+          return res.tx;
+        }
+        return tx;
+      },
       getCoinPublicKey: () => this.coinPublicKey as any,
       getEncryptionPublicKey: () => this.encryptionPublicKey as any,
     };
 
     const midnightProvider = {
-      submitTx: (tx: any) => this.dappConnectorAPI!.submitTx(tx),
+      submitTx: async (tx: any) => {
+        if (typeof this.dappConnectorAPI!.submitTx === 'function') {
+          return await this.dappConnectorAPI!.submitTx(tx);
+        }
+        if (typeof this.dappConnectorAPI!.submitTransaction === 'function') {
+          const serialized = typeof tx === 'string' ? tx : (tx.serialize ? tx.serialize() : JSON.stringify(tx));
+          return await this.dappConnectorAPI!.submitTransaction(serialized);
+        }
+        throw new Error('Wallet does not provide a transaction submission method.');
+      },
     };
 
     return {
@@ -211,12 +246,55 @@ export class ShadowVaultAuctionDApp {
   private initWalletDiscovery() {
     if (typeof window !== 'undefined') {
       window.addEventListener('load', () => this.checkExistingWallet());
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        this.checkExistingWallet();
+      }
+      const poll = setInterval(() => {
+        if (this.findWalletEntry()) {
+          this.checkExistingWallet();
+          clearInterval(poll);
+        }
+      }, 300);
+      setTimeout(() => clearInterval(poll), 4000);
     }
   }
 
+  public findWalletEntry(): any {
+    if (typeof window === 'undefined' || !window.midnight) return null;
+    const m = window.midnight as any;
+    if (m.mnLace) return m.mnLace;
+    if (m.lace) return m.lace;
+    if (m['lace-midnight']) return m['lace-midnight'];
+
+    for (const key of Object.keys(m)) {
+      const entry = m[key];
+      if (entry && (typeof entry.connect === 'function' || typeof entry.enable === 'function')) {
+        return entry;
+      }
+    }
+    return null;
+  }
+
+  public async waitForWalletEntry(timeoutMs: number = 200): Promise<any> {
+    const immediate = this.findWalletEntry();
+    if (immediate) return immediate;
+
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        await new Promise(resolve => setTimeout(resolve, 40));
+        const found = this.findWalletEntry();
+        if (found) return found;
+      }
+    }
+    return null;
+  }
+
   private async checkExistingWallet() {
-    if (window.midnight?.mnLace) {
-      this.log('Wallet', 'Midnight Lace extension detected.', 'cyan');
+    const entry = this.findWalletEntry();
+    if (entry) {
+      const name = entry.name || 'Midnight Lace';
+      this.log('Wallet', `${name} wallet extension detected.`, 'cyan');
     }
   }
 
@@ -225,31 +303,117 @@ export class ShadowVaultAuctionDApp {
     this.isConnectingWallet = true;
     this.clearWalletError();
 
+    const btnText = document.getElementById('walletBtnText');
+    if (btnText) btnText.textContent = 'Connecting...';
+
     try {
-      if (!window.midnight?.mnLace) {
+      const timeout = typeof window !== 'undefined' && (window as any).midnight === undefined ? 0 : 200;
+      const walletEntry = await this.waitForWalletEntry(timeout);
+      if (!walletEntry) {
         throw new Error('Midnight Lace wallet extension is not installed or detected.');
       }
 
-      this.log('Wallet', 'Connecting to Lace wallet...', 'cyan');
-      const api = await window.midnight.mnLace.enable();
+      this.log('Wallet', 'Connecting to Lace wallet (check popup if prompted)...', 'cyan');
+
+      let api: any = null;
+      if (typeof walletEntry.connect === 'function') {
+        const netHint = this.activeNetwork || 'testnet';
+        try {
+          api = await walletEntry.connect(netHint);
+        } catch {
+          try {
+            api = await walletEntry.connect(netHint.toLowerCase());
+          } catch {
+            api = await walletEntry.connect();
+          }
+        }
+      } else if (typeof walletEntry.enable === 'function') {
+        api = await walletEntry.enable();
+      } else {
+        throw new Error('Detected wallet entry does not support connect() or enable().');
+      }
+
+      if (!api) {
+        throw new Error('Wallet connection was cancelled or returned empty API.');
+      }
+
       this.dappConnectorAPI = api;
 
-      const state = await api.state();
-      this.walletAddress = state.address;
-      this.coinPublicKey = state.coinPublicKey;
-      this.encryptionPublicKey = state.encryptionPublicKey;
+      let unshieldedAddress: string | null = null;
+      let coinPub: string | null = null;
+      let encPub: string | null = null;
+
+      // 1. Try official ConnectedAPI methods
+      if (typeof api.getUnshieldedAddress === 'function') {
+        try {
+          const res = await api.getUnshieldedAddress();
+          if (res?.unshieldedAddress) {
+            unshieldedAddress = res.unshieldedAddress;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (typeof api.getShieldedAddresses === 'function') {
+        try {
+          const res = await api.getShieldedAddresses();
+          if (res) {
+            if (!unshieldedAddress && res.shieldedAddress) {
+              unshieldedAddress = res.shieldedAddress;
+            }
+            if (res.shieldedCoinPublicKey) coinPub = res.shieldedCoinPublicKey;
+            if (res.shieldedEncryptionPublicKey) encPub = res.shieldedEncryptionPublicKey;
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      // 2. Try legacy/mock state() method
+      if ((!unshieldedAddress || !coinPub) && typeof api.state === 'function') {
+        try {
+          const state = await api.state();
+          if (state) {
+            if (state.address) unshieldedAddress = state.address;
+            if (state.coinPublicKey) coinPub = state.coinPublicKey;
+            if (state.encryptionPublicKey) encPub = state.encryptionPublicKey;
+            if (state.balance !== undefined) {
+              this.walletDustBalance = BigInt(state.balance);
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+
+      if (!unshieldedAddress) {
+        throw new Error('Unable to retrieve wallet address from Lace. Please ensure an account is selected in Lace.');
+      }
+
+      this.walletAddress = unshieldedAddress;
+      if (coinPub) this.coinPublicKey = coinPub;
+      if (encPub) this.encryptionPublicKey = encPub;
       this.isConnected = true;
 
-      // Validate network
+      // Sync network from wallet configuration or address
+      if (typeof api.getConfiguration === 'function') {
+        try {
+          const cfg = await api.getConfiguration();
+          if (cfg?.networkId) {
+            this.syncNetworkWithWallet(cfg.networkId);
+          }
+        } catch {
+          // ignore
+        }
+      }
       if (this.walletAddress) {
         this.syncNetworkWithWallet();
       }
 
       await this.refreshWalletBalance();
       this.updateWalletUI(true);
-      if (this.walletAddress) {
-        this.log('Wallet', `Connected: ${this.walletAddress.slice(0, 16)}...`, 'green');
-      }
+      this.log('Wallet', `Connected: ${this.walletAddress.slice(0, 16)}...`, 'green');
     } catch (err: any) {
       this.showWalletError(err.message || 'Failed to connect wallet');
       this.log('Error', err.message || 'Wallet connection failed', 'red');
@@ -259,25 +423,51 @@ export class ShadowVaultAuctionDApp {
     }
   }
 
-  private syncNetworkWithWallet() {
-    if (!this.walletAddress) return;
-    const addr = this.walletAddress.toLowerCase();
-    let network: string = NetworkId.TestNet;
-    if (addr.includes('preview')) network = NetworkId.Preview;
-    else if (addr.includes('testnet') || addr.includes('preprod')) network = NetworkId.TestNet;
-    else if (addr.includes('devnet')) network = NetworkId.DevNet;
+  public switchNetwork(networkName: string) {
+    if (!networkName) return;
+    setNetworkId(networkName as any);
+    this.activeNetwork = networkName;
+    const badge = document.getElementById('verifiedNetworkName');
+    if (badge) badge.textContent = `Verified: ${networkName}`;
+    const sel = document.getElementById('networkSelect') as HTMLSelectElement;
+    if (sel && sel.value !== networkName) sel.value = networkName;
+    this.initProviders();
+    this.log('Network', `Switched active network to ${networkName}`, 'cyan');
+  }
 
-    setNetworkId(network);
+  private syncNetworkWithWallet(networkHint?: string) {
+    let network: string = NetworkId.TestNet;
+    if (networkHint) {
+      const hint = networkHint.toLowerCase();
+      if (hint.includes('preview')) network = NetworkId.Preview;
+      else if (hint.includes('testnet') || hint.includes('preprod')) network = NetworkId.TestNet;
+      else if (hint.includes('devnet')) network = NetworkId.DevNet;
+      else if (hint.includes('mainnet')) network = NetworkId.MainNet;
+    } else if (this.walletAddress) {
+      const addr = this.walletAddress.toLowerCase();
+      if (addr.includes('preview')) network = NetworkId.Preview;
+      else if (addr.includes('testnet') || addr.includes('preprod')) network = NetworkId.TestNet;
+      else if (addr.includes('devnet')) network = NetworkId.DevNet;
+    }
+
+    setNetworkId(network as any);
     this.activeNetwork = network;
     const badge = document.getElementById('verifiedNetworkName');
     if (badge) badge.textContent = `Verified: ${network}`;
+    const sel = document.getElementById('networkSelect') as HTMLSelectElement;
+    if (sel && sel.value !== network) sel.value = network;
   }
 
   private async refreshWalletBalance(): Promise<bigint> {
     if (!this.dappConnectorAPI) return 0n;
     try {
-      const state = await this.dappConnectorAPI.state();
-      this.walletDustBalance = BigInt(state.balance || 0);
+      if (typeof this.dappConnectorAPI.getDustBalance === 'function') {
+        const dustRes = await this.dappConnectorAPI.getDustBalance();
+        this.walletDustBalance = BigInt(dustRes.balance ?? 0);
+      } else if (typeof this.dappConnectorAPI.state === 'function') {
+        const state = await this.dappConnectorAPI.state();
+        this.walletDustBalance = BigInt(state.balance || 0);
+      }
       const balanceVal = document.getElementById('walletBalanceVal');
       if (balanceVal) balanceVal.textContent = `${this.walletDustBalance.toString()} Dust`;
       return this.walletDustBalance;
@@ -664,6 +854,11 @@ export class ShadowVaultAuctionDApp {
   private bindDOMEvents() {
     document.getElementById('connectWalletBtn')?.addEventListener('click', () => this.connectWallet());
     document.getElementById('walletErrorClose')?.addEventListener('click', () => this.clearWalletError());
+    document.getElementById('networkSelect')?.addEventListener('change', (e) => {
+      const net = (e.target as HTMLSelectElement)?.value;
+      if (net) this.switchNetwork(net);
+    });
+
     document.getElementById('btnDeployContract')?.addEventListener('click', () => this.handleDeployNewContract());
     document.getElementById('btnJoinContract')?.addEventListener('click', () => {
       const addr = (document.getElementById('inputContractAddr') as HTMLInputElement)?.value;
@@ -697,8 +892,16 @@ export class ShadowVaultAuctionDApp {
   }
 }
 
-if (typeof window !== 'undefined') {
-  window.addEventListener('DOMContentLoaded', () => {
+function initApp() {
+  if (typeof window !== 'undefined' && !(window as any).shadowVaultApp) {
     (window as any).shadowVaultApp = new ShadowVaultAuctionDApp();
-  });
+  }
+}
+
+if (typeof window !== 'undefined') {
+  if (document.readyState === 'loading') {
+    window.addEventListener('DOMContentLoaded', initApp);
+  } else {
+    initApp();
+  }
 }
