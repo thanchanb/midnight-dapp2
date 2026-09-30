@@ -10,9 +10,14 @@
     "preview": "vite preview",
     "compile": "compact compile contracts/shadow_vault.compact managed",
     "build": "tsc",
-    "test": "npx tsx test/real_flow.test.ts && npx tsx test/shadow_vault.test.ts && npx tsx test/preprod_e2e.test.ts",
-    "test:real": "npx tsx test/real_flow.test.ts",
-    "test:e2e": "npx tsx test/preprod_e2e.test.ts",
+    "test": "vitest run && python3 scripts/scan_secrets.py",
+    "test:circuit": "vitest run test/circuit.test.ts",
+    "test:frontend": "vitest run test/frontend.test.ts",
+    "test:sim": "vitest run test/auction.sim.test.ts",
+    "test:e2e": "npx tsx test/e2e_live.test.ts",
+    "coverage": "vitest run --coverage",
+    "scan:secrets": "python3 scripts/scan_secrets.py",
+    "evidence": "npx tsx scripts/write_evidence.ts",
     "deploy": "npx tsx scripts/deploy.ts"
   },
   "keywords": [
@@ -38,17 +43,27 @@
     "@midnight-ntwrk/midnight-js-node-zk-config-provider": "^4.1.1",
     "@midnight-ntwrk/midnight-js-types": "^4.1.1",
     "@midnight-ntwrk/midnight-js-utils": "^4.1.1",
+    "@midnight-ntwrk/wallet": "^5.0.0",
+    "@midnight-ntwrk/wallet-sdk": "^1.1.0",
+    "@midnight-ntwrk/wallet-sdk-dust-wallet": "^4.1.0",
+    "@midnight-ntwrk/wallet-sdk-facade": "^4.0.1",
+    "@midnight-ntwrk/wallet-sdk-hd": "^3.0.2",
+    "@midnight-ntwrk/wallet-sdk-unshielded-wallet": "^3.1.0",
     "assert": "^2.1.0",
     "buffer": "^6.0.3",
     "events": "^3.3.0"
   },
   "devDependencies": {
+    "@types/jsdom": "^30.0.0",
     "@types/node": "^22.0.0",
+    "@vitest/coverage-v8": "^2.1.9",
+    "jsdom": "^29.1.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
     "typescript": "^5.4.5",
     "vite": "^5.4.0",
     "vite-plugin-top-level-await": "^1.6.0",
-    "vite-plugin-wasm": "^3.6.0"
+    "vite-plugin-wasm": "^3.6.0",
+    "vitest": "^2.1.9"
   }
 }

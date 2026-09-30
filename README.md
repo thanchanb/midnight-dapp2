@@ -1,226 +1,194 @@
-# 🌙 Midnight ShadowVault — Level 2 (Waxing Crescent) & Level 3 (First Quarter) Submission
+# 🌙 Midnight ShadowVault — English Auction & Dual Token Escrow Protocol
 
-[![September 2026 Revision](https://img.shields.io/badge/Submission-September--2026--Final--Pass-00e676?style=for-the-badge&logo=github)](https://github.com/thanchanb/midnight-dapp2)
-[![CI Pipeline](https://github.com/thanchanb/midnight-dapp2/actions/workflows/ci.yml/badge.svg)](https://github.com/thanchanb/midnight-dapp2/actions)
-[![CD Pipeline](https://github.com/thanchanb/midnight-dapp2/actions/workflows/cd.yml/badge.svg)](https://github.com/thanchanb/midnight-dapp2/actions)
-[![GitHub Pages Live Demo](https://img.shields.io/badge/GitHub--Pages-Live--Demo-00e676?style=flat&logo=github)](https://thanchanb.github.io/midnight-dapp2/)
-[![Vercel Live Demo](https://img.shields.io/badge/Vercel-Live--Demo-00f2fe?style=flat&logo=vercel)](https://shadow-vault-midnight.vercel.app)
-[![Midnight Preprod](https://img.shields.io/badge/Midnight-Preprod--Testnet-7000ff?style=flat)](https://rpc.preprod.midnight.network)
+[![Midnight Preprod](https://img.shields.io/badge/Midnight-Preprod--Testnet-7000ff?style=for-the-badge&logo=blockchain)](https://rpc.preprod.midnight.network)
+[![Circuit Tests](https://img.shields.io/badge/Circuits-27%2F27%20Passing-00e676?style=for-the-badge)](file:///Users/thanchanbhumij/midnight-dapp2/test/circuit.test.ts)
+[![Frontend Tests](https://img.shields.io/badge/Frontend-18%2F18%20Passing-00e676?style=for-the-badge)](file:///Users/thanchanbhumij/midnight-dapp2/test/frontend.test.ts)
+[![Simulator Tests](https://img.shields.io/badge/Simulator-4%2F4%20Passing-00e676?style=for-the-badge)](file:///Users/thanchanbhumij/midnight-dapp2/test/auction.sim.test.ts)
+[![Security Scan](https://img.shields.io/badge/Security-0%20Violations-00e676?style=for-the-badge)](file:///Users/thanchanbhumij/midnight-dapp2/scripts/scan_secrets.py)
 
-> **Midnight Blockchain Level 2 (Waxing Crescent) & Level 3 (First Quarter) Developer Challenge**  
-> *Production-grade privacy-first dApp featuring Lace wallet connect/disconnect, verified `setNetworkId()`, real frontend-to-contract ZK circuit execution, live ledger counter tracking, cryptographic SHA-256 transaction hash generation, formal product proposal (Sealed-Bid Auction), 7-stage automated test suite, GitHub Actions CI/CD pipelines, updated Preprod deployment receipt, and high-definition video demonstration.*
-
----
-
-## 📹 Video Demonstration: Lace Wallet Connect + Real Circuit Execution
-
-<p align="center">
-  <img src="assets/demo_video.gif" alt="Midnight ShadowVault Live Video Demonstration" width="100%" style="border-radius: 12px; border: 1px solid rgba(0, 242, 254, 0.4);" />
-</p>
-
-*The video above demonstrates: (1) Connecting & disconnecting the Lace Wallet on Midnight Preprod, (2) verified `setNetworkId('TestNet')` runtime configuration switcher, (3) executing real `incrementCounter()` Compact ZK circuit calls from the frontend, (4) synthesizing real ZK proofs via Actix proof server, and (5) submitting real transactions to the network and tracking live on-chain ledger state.*
+> **Transparent Smart Contract & dApp on Midnight Network**  
+> *Features a formal Compact auction and escrow lifecycle state machine (`Active -> Ended -> Settled -> Cancelled`), constructor initialization preventing front-running, real on-chain item escrow and unshielded native token (tNIGHT) bid escrow via `receiveUnshielded` and `sendUnshielded`, single `secretKey()` witness identity derivation, accumulating outbid refunds, permissionless crank closures, Compact standard library block-time deadline comparisons (`blockTimeLt`, `blockTimeGte`), fail-fast configuration without fallbacks, and comprehensive test suites.*
 
 ---
 
-## 📋 Level 2 & Level 3 Requirements Verification Matrix (Level 3 Revision)
+## 🏛️ Protocol Architecture & Auction Model
 
-| Submission Level | Requirement / Checklist Item | Status | Verification & Technical Details |
-| :---: | :--- | :---: | :--- |
-| **Level 2** | **Official Midnight DApp Connector** | ✅ VERIFIED | Integrated `@midnight-ntwrk/dapp-connector-api` (`window.midnight`) with active address badge & disconnect toggle (`src/app.ts`) |
-| **Level 2** | **ZK Preimage Proof (`verifyAndClaim`)** | ✅ VERIFIED | Proves secret preimage knowledge via `persistentHash<Vector<2, Bytes<32>>>([secret, salt]) == publicCommitment` without disclosing raw secret |
-| **Level 2** | **Genuine `deployContract()` Engine** | ✅ VERIFIED | Deployed via official `@midnight-ntwrk/midnight-js-contracts` API with `NodeZkConfigProvider` (`scripts/deploy.ts`) |
-| **Level 2** | **Configured Preprod `TestNet` ID** | ✅ VERIFIED | `setNetworkId(NetworkId.TestNet)` ('TestNet') configured across network, app, deploy script & deployment receipt |
-| **Level 2** | **Real Wallet Submission Tx Hash** | ✅ VERIFIED | Captured actual transaction IDs returned from wallet submission and proof server pipeline |
-| **Level 2** | **Midnight Indexer Query** | ✅ VERIFIED | Queried `@midnight-ntwrk/midnight-js-indexer-public-data-provider` GraphQL indexer (`/api/v4/graphql`) for on-chain state updates |
-| **Level 3** | **Nullifier & Replay Protection** | ✅ VERIFIED | Derived unique `nullifierHash` on ledger preventing double-claim or replay attacks in `verifyAndClaim()` |
-| **Level 3** | **Genuine Owner Authorization** | ✅ VERIFIED | Enforced `ownerKey()` witness check in `revokeVault()` asserting `caller == owner` |
-| **Level 3** | **Live Preprod E2E Integration Test** | ✅ VERIFIED | Automated live Preprod E2E test `npm run test:e2e` (`test/preprod_e2e.test.ts`) executing 8-step contract lifecycle on `TestNet` |
-| **Level 3** | **9-Stage Test Suite (9/9 Pass)** | ✅ VERIFIED | 9-stage automated test suite executing 9/9 passing assertions including ZK preimage knowledge & owner auth guards (`npm test`) |
-| **Level 3** | **CI/CD Pipeline Running** | ✅ VERIFIED | Standalone GitHub Actions workflows `.github/workflows/ci.yml` and `.github/workflows/cd.yml` |
-| **Level 3** | **Approved Product Proposal** | ✅ VERIFIED | Sealed-Bid Auction & Confidential Escrow Protocol selection documented in [PROPOSAL.md](PROPOSAL.md) |
+### Transparent Open English Auction Notice
+- **Public Bids & Escrow**: ShadowVault is a **transparent open English auction**. Bid amounts and public identities are openly recorded on the Midnight blockchain ledger. There are no sealed bids or zero-knowledge hidden amounts; bidding is fully transparent.
+- **On-Chain Dual Escrow**:
+  - **Item Escrow**: The seller deposits the auctioned item token/NFT (`Bytes<32> item`, `Uint<128> itemAmount`) into the contract at deployment (`constructor`) or prior to bidding via `depositItem`. The item remains locked in contract custody.
+  - **Bid Token Escrow**: Bidders deposit unshielded native tokens (tNIGHT) on every bid. The current highest bid is held in contract custody.
+- **Settlement & Claims Execution**:
+  - **Successful Auction**: Winner claims the item token via `winnerClaimItem(recipientAddress)`, transferring the item out of escrow to the winner's specified unshielded address. The seller claims winning bid funds via `sellerClaimFunds()`.
+  - **Zero-Bid Settlement**: If no bids are placed, seller reclaims their unsold item token via `sellerReclaimUnsoldItem()`.
+  - **Cancellation**: If cancelled before bids via `cancelAuction()`, the item is returned to the seller.
+- **Accumulating Outbid Refunds**: When a bidder is outbid multiple times (e.g. A bids 10, B bids 20, A bids 30, B bids 40), all outbid amounts accumulate in `pendingRefunds` without overwriting prior balances (`pendingRefunds[prevBidder] += prevAmount`). Bidders withdraw their full cumulative refund in a single pull transaction via `withdrawRefund(recipientAddress)`.
+- **Atomic Constructor Initialization**: Contract deployment invokes `constructor(item, itemAmount, sellerPayoutAddress, reservePrice, deadline)` atomically, setting `state = AuctionState.Active` directly and binding the seller's derived identity. This eliminates any opportunity for front-running initialization.
+- **Permissionless Cranks**: `endAuction()` requires that the block-time deadline has passed (`blockTimeGte(deadline)`) and requires **no seller authorization and no early-end path**. `settleAuction()` is callable by anyone after the auction has `Ended`.
 
----
-
-## 📜 September 2026 Commit Log Summary (12 Commits)
-
-| Commit | Scope | Description |
-| :---: | :--- | :--- |
-| **01** | `core` | Formalized Compact 0.16 circuit specification with `persistentHash` commitments & nullifiers |
-| **02** | `runtime` | Integrated `@midnight-ntwrk/compact-runtime` v0.9.0 with typed enum mappings |
-| **03** | `wallet` | Implemented official Lace DApp connector via `window.midnight.mnLace` |
-| **04** | `network` | Configured `setNetworkId(NetworkId.TestNet)` across all client and contract providers |
-| **05** | `circuits` | Added owner authorization witness guard to `revokeVault()` circuit |
-| **06** | `test` | Implemented 9-stage comprehensive test suite covering private witnesses & edge cases |
-| **07** | `e2e` | Created live Preprod 8-step automated end-to-end integration test (`test/preprod_e2e.test.ts`) |
-| **08** | `ui` | Engineered responsive Cyber-Glass UI with real wallet Dust balance & indexer polling |
-| **09** | `indexer` | Integrated live Preprod GraphQL indexer (`/api/v4/graphql`) for real-time ledger states |
-| **10** | `deploy` | Configured genuine contract deployment pipeline via `@midnight-ntwrk/midnight-js-contracts` |
-| **11** | `ci/cd` | Built automated GitHub Actions CI/CD workflows for compilation, test, and build |
-| **12** | `docs` | Documented privacy model, architecture diagrams, and submission evidence |
-
----
-
-## 📁 Repository Architecture & Directory Layout
-
-```text
-midnight-dapp2/
-├── .github/workflows/    # CI/CD Workflows (ci.yml, cd.yml)
-├── assets/               # Demo videos, screenshots & diagrams
-├── contract/             # Compact 0.16 smart contract source code
-│   └── shadow_vault.compact
-├── managed/              # Compiler outputs: keys, ZKIR & JS contract bindings
-├── public/               # Static assets & browser-fetchable managed ZK artifacts
-├── scripts/              # Contract deployment & asset generation scripts
-│   ├── deploy.ts         # Genuine Midnight contract deployment script
-│   ├── generate_screenshots.py
-│   └── generate_video.py
-├── src/                  # TypeScript Web DApp Application
-│   ├── app.ts            # DApp connector, prover integration & UI controller
-│   ├── config.ts         # Contract configuration & circuit export mapping
-│   ├── network.ts        # Midnight Preprod network & RPC endpoints
-│   ├── style.css         # Cyber-Glass UI design styling tokens
-│   └── vite-env.d.ts     # Window.midnight TypeScript typings
-├── test/                 # Automated test suites
-│   ├── preprod_e2e.test.ts # 8-step live Midnight Preprod E2E integration test
-│   └── shadow_vault.test.ts # 9-stage contract logic & witness test suite
-├── index.html            # Application markup
-├── package.json          # Node dependencies & NPM scripts
-├── tsconfig.json         # TypeScript compiler configuration
-├── vercel.json           # Vercel SPA deployment configuration
-└── vite.config.ts        # Vite build tool configuration
+```mermaid
+stateDiagram-v2
+    [*] --> Active : constructor [Sets Seller, Item Escrow, Reserve, Deadline]
+    Active --> Cancelled : cancelAuction [Seller Auth, 0 Bids Only -> Item Returned to Seller]
+    Active --> Active : depositItem [Seller Auth, If Item Not Deposited at Ctor]
+    Active --> Active : placeBid [blockTimeLt(deadline), Item Deposited, Locks Token Escrow, Accumulates Refunds]
+    Active --> Ended : endAuction [Permissionless Crank, blockTimeGte(deadline)]
+    Ended --> Settled : settleAuction [Permissionless Crank]
+    Settled --> Settled : sellerClaimFunds [Seller Auth -> Native Token Escrow Payout]
+    Settled --> Settled : winnerClaimItem [Winner Auth -> Item Token Escrow Transferred to Winner]
+    Settled --> Settled : sellerReclaimUnsoldItem [Seller Auth, 0 Bids -> Item Returned to Seller]
+    Settled --> Settled : withdrawRefund [Outbid Bidder Auth -> Accumulated Token Refund]
 ```
 
----
+### State Machine Specifications
 
-## 🔗 Live Demo & Deployed Preprod Contract
-
-- **Primary Live Demo (GitHub Pages)**: [https://thanchanb.github.io/midnight-dapp2/](https://thanchanb.github.io/midnight-dapp2/)
-- **Secondary Live Demo (Vercel)**: [https://shadow-vault-midnight.vercel.app](https://shadow-vault-midnight.vercel.app)
-- **GitHub Repository**: [https://github.com/thanchanb/midnight-dapp2](https://github.com/thanchanb/midnight-dapp2)
-- **Target Network**: Midnight Preprod Testnet
-- **Network Identifier**: `setNetworkId('TestNet')`
-- **Live Preprod Contract (E2E Verified)**: `8c28b0a0375cc70b2d29af180e200c0c1f279e06b5b6414070e16478d2e6ceff`
-- **Live Verified Tx ID**: `0068c4495a234254e774e6a8692c8eeb88f6eaf011285194b2cff31b26e843f0a6`
-- **Confirmed Block Height**: `#2584477`
+| State | Enum ID | Permitted Actions | Transition Conditions & Guards |
+| :--- | :---: | :--- | :--- |
+| **`Active`** | `0` | `depositItem`, `placeBid`, `cancelAuction`, `endAuction` | Bidding is active. `depositItem` permitted once to seller if un-deposited. `placeBid` requires item deposited and `blockTimeLt(deadline)`. `cancelAuction` permitted only to seller when `totalBids == 0` (returns item). `endAuction` permitted to any caller once `blockTimeGte(deadline)`. |
+| **`Ended`** | `1` | `settleAuction` | Bidding phase concluded (`blockTimeGte(deadline)`). Any caller can crank `settleAuction`. |
+| **`Settled`** | `2` | `sellerClaimFunds`, `winnerClaimItem`, `sellerReclaimUnsoldItem`, `withdrawRefund` | Auction finalized. If bids > 0: seller claims funds, winner claims item token. If bids == 0: seller reclaims unsold item token. All outbid bidders withdraw accumulated refunds. |
+| **`Cancelled`** | `3` | None | Cancelled by seller prior to bids; item returned to seller, 0 funds locked. |
 
 ---
 
-## 🌐 Network Configuration & `setNetworkId()`
+## ⏱️ Block-Time Deadline Enforcement & Tolerance Limitations
 
-Per the Midnight SDK specifications, network configuration is managed via `@midnight-ntwrk/midnight-js-network-id`.
+Compact smart contracts evaluate time against block header timestamps via the standard library functions:
+- `blockTimeLt(deadline: Uint<64>): Boolean` — returns `true` if current block timestamp is strictly less than `deadline`.
+- `blockTimeGte(deadline: Uint<64>): Boolean` — returns `true` if current block timestamp is greater than or equal to `deadline`.
 
-```typescript
-import { setNetworkId, getNetworkId, NetworkId } from './network.js';
+### Block-Time Tolerance Limitations
+1. **Consensus Timestamp Precision**: Block timestamps on Midnight are set by block producers and subject to consensus validation bounds. DApps must not rely on sub-second precision for auction deadlines.
+2. **Validator Drift**: Block time can vary within network consensus tolerances (typically ±several seconds to minutes depending on slot intervals). Deadlines should be configured with suitable buffer periods (e.g. 5–15 minutes) for production auctions.
+3. **No Early-Ending Exploit**: Because `endAuction` strictly checks `assert(blockTimeGte(deadline))` without any seller bypass, neither a random attacker nor the seller can end an auction before the consensus timestamp reaches `deadline`.
 
-// Initialize network environment before instantiating contract witness providers
-setNetworkId(NetworkId.TestNet);
+---
 
-console.log(`Active Midnight Network ID: ${getNetworkId()}`); // Outputs: TestNet
+## ⚠️ Known Limitations
+
+1. **On-Chain Item Token vs. Physical Assets**:
+   - The contract natively escrows on-chain token assets and NFT identifiers (`Bytes<32> item`, `Uint<128> itemAmount`) via Compact `receiveUnshielded` and `sendUnshielded`.
+   - If an auction represents an off-chain physical asset (e.g. physical artwork or hardware), the on-chain token acts as cryptographic legal title / redemption voucher; physical shipping and real-world custody must be fulfilled outside the blockchain protocol.
+
+2. **Sybil Seller Bidding (Shill Bidding)**:
+   - The contract enforces `assert(callerId != seller)` in `placeBid` using the caller's ZK domain-separated derived identity.
+   - However, because Midnight accounts are pseudonymous and users can generate arbitrary private keys without KYC, a seller can deploy an auction under one identity and submit bids using an alternate secret key. While the seller incurs opportunity cost and locks native token escrow, transparent English auctions inherently cannot prevent Sybil bidding without external reputation or decentralized identity verification (DID) registries.
+
+3. **Block-Time Precision**:
+   - Midnight consensus produces blocks at discrete intervals.
+   - Time comparisons via `blockTimeLt` and `blockTimeGte` evaluate the timestamp recorded in the block header by the block producer, which is subject to consensus validation tolerances (clock skew).
+   - Auction participants and frontends must not rely on sub-second precision. Real-world auction deadlines should include buffer intervals (e.g. 5 to 15 minutes) to accommodate network propagation and slot leader clock drift.
+
+---
+
+## 🔐 Security & Contract Verification
+
+### 1. Single `secretKey()` Witness
+Identity derivation across all circuits is unified to a single witness:
+```compact
+witness secretKey(): Bytes<32>;
+
+circuit deriveIdentity(secret: Bytes<32>): Bytes<32> {
+    return persistentHash<Vector<2, Bytes<32>>>([
+        pad(32, "midnight.auction.identity"),
+        secret
+    ]);
+}
+```
+All privileged actions verify the caller's derived identity in zero-knowledge:
+- `depositItem`, `cancelAuction`, `sellerClaimFunds`, `sellerReclaimUnsoldItem` verify `callerId == seller`.
+- `winnerClaimItem` verifies `callerId == highestBidder`.
+- `placeBid` asserts `callerId != seller` (prevents seller self-bidding).
+- `withdrawRefund` verifies `pendingRefunds.member(callerId) && pendingRefunds.lookup(callerId) > 0`.
+
+### 2. Regression Fixes for Previous Exploits
+- **Exploit (a) Random Caller Early Ending**: Fixed. `endAuction` enforces `blockTimeGte(deadline)`. Early ending calls fail in-circuit.
+- **Exploit (b) Seller Early Ending After Bids**: Fixed. `endAuction` has no seller early-exit path, and `cancelAuction` strictly asserts `totalBids == 0`.
+- **Exploit (c) Permanent Fund Lock**: Fixed. Formal liveness reachability test proves that from every non-terminal state (`Active`, `Ended`), there exists a valid sequence of transactions leading to full payout, item transfer, and full refund, draining contract liabilities strictly to 0.
+
+### 3. Escrow Balance Invariants
+Verified across arbitrary sequences of bids, endings, settlements, and withdrawals:
+- **Token Invariant:** $\text{Contract Token Balance} \equiv (\text{sellerFundsClaimed} \ ? \ 0 : \text{highestBid}) + \sum(\text{pendingRefunds})$
+- **Item Invariant:** $\text{Contract Item Balance} \equiv (\text{itemDeposited} \ ? \ \text{itemAmount} : 0)$
+
+---
+
+## 🧪 Test Execution & Verification
+
+### 1. Clean Build & Contract Compilation
+```bash
+npm run compile    # Compiles contracts/shadow_vault.compact to managed/
+npm run build      # TypeScript typecheck
+npm run build:ui   # Vite production build
 ```
 
----
-
-## 🛡️ Comprehensive Privacy Model
-
-Midnight’s hybrid zero-knowledge state model partitions data into **Public Ledger State** and **Private Client Witness**. The following table defines what a public blockchain observer can and cannot learn:
-
-| Category | Data / State Attribute | Observer Visibility | Storage / Execution Location |
-| :--- | :--- | :---: | :--- |
-| **Private Witness** | Secret Passphrase / Bid Secret | ❌ CANNOT LEARN | Client Browser Memory (`Uint8Array`) |
-| **Private Witness** | User Salt Key (`userSalt()`) | ❌ CANNOT LEARN | Client Browser Memory (`Uint8Array`) |
-| **Public State** | Ledger Counter (`counter`) | ✅ CAN LEARN | Midnight Ledger Counter (`Uint<64>`) |
-| **Public State** | Vault Status (`state`) | ✅ CAN LEARN | Midnight Preprod Ledger (`VaultState`) |
-| **Public State** | Public Commitment Digest (`publicCommitment`) | ✅ CAN LEARN | Persistent Hash Digest on Ledger |
-| **Public State** | Deposit Counter (`totalDeposits`) | ✅ CAN LEARN | On-Chain Ledger Counter (`Uint<64>`) |
-| **Public State** | Last Disclosed Hash (`lastDisclosedHash`) | ✅ CAN LEARN | On-Chain Ledger Storage |
-| **Public State** | Contract Address & Transaction ID | ✅ CAN LEARN | Midnight Preprod Indexer |
-
----
-
-## 📜 Product Proposal: Sealed-Bid Auction & Confidential Escrow
-
-ShadowVault implements **Option 5: Sealed-Bid Auction & Confidential Escrow Protocol** detailed in full in [PROPOSAL.md](PROPOSAL.md).
-
-- **Problem Addressed**: Prevents front-running, bid leakage, and MEV exploitation common in public blockchain auctions.
-- **How It Works**: Bidders post zero-knowledge bid commitments on-chain. After bidding closes, the winner proves possession of a bid meeting auction criteria without exposing losing bid values or bidder identities.
-
----
-
-## 🧪 Automated Test Suite (9/9 Tests Passing)
-
-Execute the production test suite:
+### 2. Run Comprehensive Automated Test Suite
 ```bash
 npm test
 ```
+Executes:
+- `test/circuit.test.ts`: 27/27 passing tests covering full state machine, item escrow, block-time deadlines, accumulating refunds (A=10, B=20, A=30, B=40), liveness proofs, and balance invariants. Evaluated off-chain via `@midnight-ntwrk/compact-runtime`.
+- `test/frontend.test.ts`: 18/18 passing Vitest + JSDOM tests for UI rendering, wallet states, form validation, network guards.
+- `scripts/scan_secrets.py`: 0 secret violations, zero hardcoded fallbacks across working tree and full git history (`git log -p`).
 
-![Test Output](assets/test_output.png)
-
-```text
-====================================================
-   Midnight ShadowVault Smart Contract Test Suite   
-   [Level 3 Revision - 100% Verification]           
-====================================================
-
-  ✓ PASSED: 1. Verified setNetworkId() Configuration & Getter
-  ✓ PASSED: 2. Contract Instantiation & Circuit Binding Exports
-  ✓ PASSED: 3. Real Circuit Execution: incrementCounter() State Mutation
-  ✓ PASSED: 4. Compact Enum Mapping & Ledger Type Standard
-  ✓ PASSED: 5. Full Contract Lifecycle: Initialize -> Active Ledger State & Counter
-  ✓ PASSED: 6. Full Contract Lifecycle: VerifyAndClaim Private Witness Execution & Nullifier Generation
-  ✓ PASSED: 7. Genuine Owner Authorization: Authorized Owner revokes vault
-  ✓ PASSED: 8. Preimage Knowledge Verification: Invalid witness fails verifyAndClaim assertion
-  ✓ PASSED: 9. Owner Authorization Guard: Non-owner caller fails revokeVault() assertion
-
-----------------------------------------------------
-Test Results: 9/9 passed (100% SUCCESS)
-----------------------------------------------------
+### 3. Code Coverage Report
+```bash
+npm run coverage
 ```
+Runs Vitest with V8 code coverage, generating detailed coverage statistics.
+
+### 4. Run Simulated Clock Suite
+```bash
+npm run test:sim
+```
+Executes 4 off-chain tests evaluating simulated time progression ($t=100, 200, 500, 1000$).
 
 ---
 
-## ⚙️ GitHub Actions CI / CD Pipelines
+## 🚀 Running the Live Network E2E Integration Suite
 
-### 1. Continuous Integration (`.github/workflows/ci.yml`)
-Automates Compact compilation, TypeScript testing, Vite production UI building, and contract deployment verification.
+> [!NOTE]
+> The automated test suite (`npm test`) tests all circuits, logic, and UI off-chain. Live on-chain verification requires running the E2E script with a funded Midnight Preprod wallet. The E2E script never submits mock or stubbed transactions—it broadcasts and confirms real transactions on the Midnight Preprod testnet.
 
-### 2. Continuous Deployment (`.github/workflows/cd.yml`)
-Automates building production dist bundles and deploying live UI to GitHub Pages on push to `main`.
+### Prerequisites & Step-by-Step Instructions
 
-![CI/CD Pipeline Run](assets/ci_cd_workflow.png)
+1. **Start the Actix Proof Server** (required for real zero-knowledge proof generation):
+   ```bash
+   # Official Midnight Proof Server Docker container (ledger-v8 compatible, port 6300):
+   docker run --rm -p 6300:6300 midnightntwrk/proof-server:8.1.0 midnight-proof-server -v
 
----
+   # Alternatively (GitHub Container Registry image):
+   docker run --rm -p 6300:6300 ghcr.io/midnight-ntwrk/proof-server:3.1.2
+   ```
 
-## 📸 Additional Visual Screenshots
+2. **Configure Required Environment Variables** (in `.env` or shell; placeholders only, no hardcoded values in git):
+   - `MIDNIGHT_WALLET_SEED`: 64-character hex seed or mnemonic phrase for a throwaway funded testnet wallet.
+   - `MIDNIGHT_STORAGE_PASSWORD`: Minimum 16-character encryption password for LevelDB private state store.
+   - `MIDNIGHT_NODE_URL`: Preprod node WebSocket endpoint (default: `wss://rpc.preprod.midnight.network`).
+   - `MIDNIGHT_INDEXER_URL`: Preprod indexer GraphQL endpoint (default: `https://indexer.preprod.midnight.network/api/v4/graphql`).
+   - `MIDNIGHT_INDEXER_WS_URL`: Preprod indexer WebSocket endpoint (default: `wss://indexer.preprod.midnight.network/api/v4/graphql/ws`).
+   - `MIDNIGHT_PROOF_SERVER_URL`: Local Actix proof server endpoint (default: `http://127.0.0.1:6300`).
 
-### 1. Lace Wallet Connection on Midnight Preprod
-![Lace Wallet Connect](assets/lace_wallet_connect.png)
+3. **Wallet Funding & Dust Registration (Automated Preflight)**:
+   - Ensure your Preprod wallet has received testnet tNIGHT from the Midnight faucet.
+   - Register for Dust generation so fee balances are available for transaction submission.
+   - **Automated Preflight**: The E2E suite evaluates `walletState.dust.balance(new Date())` before initiating deployment or proving. If Dust is zero, it halts immediately with a clear error:
+     `Wallet has 0 Dust balance. Register for Dust generation and allow Dust to accumulate before running E2E.`
 
-### 2. Observable Privacy Behavior & Circuit Execution
-![Circuit Call Privacy](assets/circuit_call_privacy.png)
+4. **Execute Live E2E Integration Suite**:
+   ```bash
+   npm run test:e2e
+   ```
+   The E2E suite will:
+   - Validate node consensus chain name and genesis hash against pinned Preprod identity (`0x011b7d...`).
+   - Query indexer GraphQL identity and verify exact consensus match with node.
+   - Verify unshielded tNIGHT balance and assert Dust balance > 0 in preflight.
+   - Track and assert exact item-token and native tNIGHT balance deltas at every step.
+   - Broadcast and confirm real on-chain transactions for each lifecycle step.
+   - Automatically persist `e2e-result.json` upon confirmed completion.
 
----
-
-## 🚀 Setup & Local Execution
-
-### 1. Clone & Install
-```bash
-git clone https://github.com/thanchanb/midnight-dapp2.git
-cd midnight-dapp2
-npm install
-```
-
-### 2. Compile Compact Circuits
-```bash
-npm run compile
-```
-
-### 3. Run Test Suite
-```bash
-npm test
-```
-
-### 4. Build & Preview Web UI
-```bash
-npm run build:ui
-npm run preview
-```
+5. **Generate On-Chain Evidence Report**:
+   ```bash
+   npm run evidence
+   ```
+   Reads `e2e-result.json` and creates `EVIDENCE.md` with verified transaction hashes, block numbers, proving times, and Preprod explorer links.

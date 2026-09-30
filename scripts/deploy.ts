@@ -1,6 +1,6 @@
-import { Contract, VaultState, ledger, type Witnesses } from '../managed/contract/index.js';
+import { Contract, AuctionState, ledger, type Witnesses } from '../managed/contract/index.js';
 import * as CompiledContract from '@midnight-ntwrk/compact-js/effect/CompiledContract';
-import { setNetworkId, getNetworkId, NetworkId } from '../src/network.js';
+import { setNetworkId, getNetworkId, NetworkId, validateNetworkId } from '../src/network.js';
 import { deployContract } from '@midnight-ntwrk/midnight-js-contracts';
 import { NodeZkConfigProvider } from '@midnight-ntwrk/midnight-js-node-zk-config-provider';
 import { indexerPublicDataProvider } from '@midnight-ntwrk/midnight-js-indexer-public-data-provider';
@@ -8,6 +8,8 @@ import { httpClientProofProvider } from '@midnight-ntwrk/midnight-js-http-client
 import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-private-state-provider';
 import fs from 'fs';
 import path from 'path';
+
+import { requireEnv, createWitnesses } from '../src/api.js';
 
 interface DeploymentConfig {
   network: string;
@@ -19,10 +21,10 @@ interface DeploymentConfig {
 
 const PREPROD_CONFIG: DeploymentConfig = {
   network: 'Midnight Preprod Testnet',
-  nodeUrl: process.env.MIDNIGHT_NODE_URL || 'https://rpc.preprod.midnight.network',
-  indexerUrl: process.env.MIDNIGHT_INDEXER_URL || 'https://indexer.preprod.midnight.network/api/v4/graphql',
-  indexerWsUrl: process.env.MIDNIGHT_INDEXER_WS_URL || 'wss://indexer.preprod.midnight.network/api/v4/graphql/ws',
-  proofServerUrl: process.env.MIDNIGHT_PROOF_SERVER_URL || 'http://localhost:6300',
+  nodeUrl: requireEnv('MIDNIGHT_NODE_URL'),
+  indexerUrl: requireEnv('MIDNIGHT_INDEXER_URL'),
+  indexerWsUrl: requireEnv('MIDNIGHT_INDEXER_WS_URL'),
+  proofServerUrl: requireEnv('MIDNIGHT_PROOF_SERVER_URL'),
 };
 
 async function deployShadowVault() {
@@ -32,6 +34,7 @@ async function deployShadowVault() {
 
   // Configure actual Preprod network ID
   setNetworkId(NetworkId.TestNet);
+  validateNetworkId(getNetworkId());
   console.log(`[1/5] Target Network Configuration:`);
   console.log(`      Network ID:    ${getNetworkId()}`);
   console.log(`      Network:       ${PREPROD_CONFIG.network}`);
@@ -49,11 +52,7 @@ async function deployShadowVault() {
   console.log(`      ✓ Initialized NodeZkConfigProvider with local managed key artifacts\n`);
 
   console.log(`[3/5] Instantiating ShadowVault Smart Contract...`);
-  const deployWitnesses: Witnesses<any> = {
-    secretWitness: (context) => [context.privateState, new Uint8Array(32)],
-    userSalt: (context) => [context.privateState, new Uint8Array(32)],
-    ownerKey: (context) => [context.privateState, new Uint8Array(32)],
-  };
+  const deployWitnesses: Witnesses<any> = createWitnesses();
   const compiledContract = CompiledContract.make('ShadowVault', Contract).pipe(
     CompiledContract.withWitnesses(deployWitnesses)
   );
@@ -67,15 +66,15 @@ async function deployShadowVault() {
     PREPROD_CONFIG.proofServerUrl,
     zkConfigProvider
   );
-  const deployPassword = process.env.MIDNIGHT_STORAGE_PASSWORD || `SV_Deploy_${Date.now()}_!9aZSecKey`;
+  const deployPassword = requireEnv('MIDNIGHT_STORAGE_PASSWORD');
   const privateStateProvider = levelPrivateStateProvider({
     midnightDbName: 'shadow_vault_deploy_db',
     accountId: 'deployer',
     privateStoragePasswordProvider: () => deployPassword
   });
 
-  const coinPublicKey = process.env.MIDNIGHT_WALLET_COIN_PUBLIC_KEY;
-  const encryptionPublicKey = process.env.MIDNIGHT_WALLET_ENCRYPTION_PUBLIC_KEY;
+  const coinPublicKey = requireEnv('MIDNIGHT_WALLET_COIN_PUBLIC_KEY');
+  const encryptionPublicKey = requireEnv('MIDNIGHT_WALLET_ENCRYPTION_PUBLIC_KEY');
 
   if (!coinPublicKey || !encryptionPublicKey) {
     throw new Error(
@@ -133,6 +132,11 @@ async function deployShadowVault() {
     }
   };
 
+  const deployItem = new Uint8Array(32);
+  const sellerPayoutAddress = new Uint8Array(32);
+  const reservePrice = 1000n;
+  const deadline = BigInt(Math.floor(Date.now() / 1000) + 3600); // 1 hour from now
+
   // Execute genuine deploy flow on network
   const deployed = await deployContract(
     {
@@ -145,6 +149,7 @@ async function deployShadowVault() {
     } as any,
     {
       compiledContract,
+      args: [deployItem, 0n, sellerPayoutAddress, reservePrice, deadline],
       privateStateId: 'shadowVaultState',
       initialPrivateState: {},
     } as any
@@ -169,14 +174,22 @@ async function deployShadowVault() {
   console.log(`================================================================\n`);
 
   const receipt = {
-    contractName: 'ShadowVault',
+    contractName: 'ShadowVaultAuction',
     contractAddress: contractAddressHex,
     transactionId: txIdHex,
     blockNumber: blockNumber,
     networkId: getNetworkId(),
     network: PREPROD_CONFIG.network,
     deployedAt: new Date().toISOString(),
-    circuits: ['incrementCounter', 'initializeVault', 'verifyAndClaim', 'revokeVault'],
+    circuits: [
+      'cancelAuction',
+      'placeBid',
+      'endAuction',
+      'settleAuction',
+      'sellerClaimFunds',
+      'winnerClaimItem',
+      'withdrawRefund',
+    ],
   };
 
   fs.writeFileSync('deployment-receipt.json', JSON.stringify(receipt, null, 2));

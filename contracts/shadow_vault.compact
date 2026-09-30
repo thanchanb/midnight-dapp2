@@ -1,69 +1,302 @@
 pragma language_version >= 0.14.0;
 import CompactStandardLibrary;
 
-// ShadowVault: Privacy-Preserving Shielded Escrow & ZK Secret Proof Protocol
-export enum VaultState { uninitialized, active, claimed, revoked }
+// ============================================================================
+// Midnight ShadowVault: Transparent Open English Auction Protocol with Native & Item Escrow
+//
+// NOTE: This contract implements an open, transparent English auction with
+// on-chain public bid amounts, native token bid escrow, and on-chain item escrow.
+// The auctioned item (token/NFT) is deposited into contract escrow by the seller
+// (at construction or via depositItem), held by the contract, and transferred to the
+// winning bidder upon settlement, or returned to the seller upon cancel / zero-bid settle.
+// ============================================================================
 
+// State Machine Lifecycle: Active -> Ended -> Settled / Cancelled
+export enum AuctionState {
+    Active,
+    Ended,
+    Settled,
+    Cancelled
+}
+
+// ----------------------------------------------------------------------------
 // Public Ledger State Storage
-export ledger state: VaultState;
-export ledger publicCommitment: Bytes<32>;
-export ledger owner: Bytes<32>;
-export ledger totalDeposits: Uint<64>;
-export ledger counter: Uint<64>;
-export ledger nullifierHash: Bytes<32>;
-export ledger lastDisclosedHash: Bytes<32>;
+// ----------------------------------------------------------------------------
+export ledger state: AuctionState;
+export ledger item: Bytes<32>;
+export ledger itemAmount: Uint<128>;
+export ledger itemDeposited: Boolean;
+export ledger seller: Bytes<32>;
+export ledger sellerRecipientAddress: Bytes<32>;
+export ledger reservePrice: Uint<128>;
+export ledger highestBid: Uint<128>;
+export ledger highestBidder: Bytes<32>;
+export ledger highestBidderRecipient: Bytes<32>;
+export ledger deadline: Uint<64>;
+export ledger totalBids: Uint<64>;
+export ledger totalRefundsClaimed: Uint<64>;
+export ledger sellerFundsClaimed: Boolean;
+export ledger sellerItemReclaimed: Boolean;
+export ledger winnerItemClaimed: Boolean;
 
-// Private Client Witnesses (Evaluated exclusively in client-side ZK prover memory)
-witness secretWitness(): Bytes<32>;
-witness userSalt(): Bytes<32>;
-witness ownerKey(): Bytes<32>;
+// Pending Escrow Refunds for outbid bidders: Bidder Public Identity -> Accumulated Escrow Amount
+export ledger pendingRefunds: Map<Bytes<32>, Uint<128>>;
 
-// Circuit 1: Mutates ledger counter state in zero-knowledge
-export circuit incrementCounter(): [] {
-    counter = (counter + 1) as Uint<64>;
+// ----------------------------------------------------------------------------
+// Private Client Witness (Single secret key for caller identity derivation)
+// ----------------------------------------------------------------------------
+witness secretKey(): Bytes<32>;
+
+// ----------------------------------------------------------------------------
+// Cryptographic Identity Derivation (Midnight Domain-Separated Witness Pattern)
+// ----------------------------------------------------------------------------
+circuit deriveIdentity(secret: Bytes<32>): Bytes<32> {
+    return persistentHash<Vector<2, Bytes<32>>>([
+        pad(32, "midnight.auction.identity"),
+        secret
+    ]);
 }
 
-// Circuit 2: Binds commitment and owner on-chain while keeping secret preimage private
-export circuit initializeVault(commitment: Bytes<32>, ownerId: Bytes<32>): [] {
-    assert(state == VaultState.uninitialized, "Vault already initialized");
-    publicCommitment = disclose(commitment);
-    owner = disclose(ownerId);
-    state = VaultState.active;
-    totalDeposits = (totalDeposits + 1) as Uint<64>;
-    counter = (counter + 1) as Uint<64>;
+circuit verifySellerAuth(): [] {
+    const secret = secretKey();
+    const callerId = deriveIdentity(secret);
+    assert(callerId == seller, "Unauthorized: Caller is not the auction seller");
 }
 
-// Circuit 3: Verifies private witness passphrase matching public commitment without exposing raw secret. Includes nullifier replay protection.
-export circuit verifyAndClaim(): [] {
-    assert(state == VaultState.active, "Vault must be active to claim");
-    
-    // Witness extraction (kept private)
-    const secret = secretWitness();
-    const salt = userSalt();
-    
-    // 1. Preimage Proof: Prove knowledge of secret and salt matching publicCommitment
-    const computedCommitment = persistentHash<Vector<2, Bytes<32>>>([secret, salt]);
-    assert(computedCommitment == publicCommitment, "Invalid secret passphrase: preimage hash does not match public commitment");
-
-    // 2. Nullifier & Replay Protection: Generate unique nullifier derived from secret witness
-    const nullifier = persistentHash<Vector<2, Bytes<32>>>([secret, computedCommitment]);
-    const publicNullifier = disclose(nullifier);
-    assert(nullifierHash == pad(32, ""), "Nullifier already spent: claim replay detected");
-    
-    nullifierHash = publicNullifier;
-    lastDisclosedHash = disclose(computedCommitment);
-    state = VaultState.claimed;
-    counter = (counter + 1) as Uint<64>;
+circuit verifyWinnerAuth(): [] {
+    const secret = secretKey();
+    const callerId = deriveIdentity(secret);
+    assert(callerId == highestBidder, "Unauthorized: Caller is not the winning bidder");
 }
 
-// Circuit 4: Revokes active vault with owner authorization check
-export circuit revokeVault(): [] {
-    assert(state == VaultState.active, "Vault must be active to revoke");
-    
-    // Genuine Owner Authorization Check (Zero-Knowledge equality proof, no on-chain disclosure)
-    const caller = ownerKey();
-    assert(caller == owner, "Unauthorized: caller is not the vault owner");
-    
-    state = VaultState.revoked;
-    counter = (counter + 1) as Uint<64>;
+// ----------------------------------------------------------------------------
+// Constructor: Atomically sets seller, item, reserve, payout address & deadline.
+// If itemAmountParam > 0, deposits the item directly into contract escrow at deploy.
+// Prevents front-running initialization by establishing ownership at deploy time.
+// ----------------------------------------------------------------------------
+constructor(
+    itemParam: Bytes<32>,
+    itemAmountParam: Uint<128>,
+    sellerPayoutAddress: Bytes<32>,
+    reservePriceParam: Uint<128>,
+    deadlineParam: Uint<64>
+) {
+    assert(deadlineParam > 0, "Deadline must be greater than zero");
+
+    const secret = secretKey();
+    const derivedSeller = deriveIdentity(secret);
+
+    state = AuctionState.Active;
+    item = disclose(itemParam);
+    itemAmount = disclose(itemAmountParam);
+    seller = disclose(derivedSeller);
+    sellerRecipientAddress = disclose(sellerPayoutAddress);
+    reservePrice = disclose(reservePriceParam);
+    deadline = disclose(deadlineParam);
+    highestBid = 0;
+    highestBidder = pad(32, "");
+    highestBidderRecipient = pad(32, "");
+    totalBids = 0;
+    totalRefundsClaimed = 0;
+    sellerFundsClaimed = false;
+    sellerItemReclaimed = false;
+    winnerItemClaimed = false;
+
+    if (itemAmount > 0) {
+        receiveUnshielded(item, itemAmount);
+        itemDeposited = true;
+    } else {
+        itemDeposited = false;
+    }
 }
+
+// ----------------------------------------------------------------------------
+// Circuit 1: Deposit Item into Escrow (Seller Only, Once before bidding starts)
+// ----------------------------------------------------------------------------
+export circuit depositItem(
+    itemTokenId: Bytes<32>,
+    amount: Uint<128>
+): [] {
+    assert(state == AuctionState.Active, "Auction is not active");
+    assert(!itemDeposited, "Item has already been deposited into escrow");
+    assert(amount > 0, "Item deposit amount must be greater than zero");
+    verifySellerAuth();
+
+    receiveUnshielded(disclose(itemTokenId), disclose(amount));
+
+    item = disclose(itemTokenId);
+    itemAmount = disclose(amount);
+    itemDeposited = true;
+}
+
+// ----------------------------------------------------------------------------
+// Circuit 2: Cancel Auction (Seller Only, only before any bids are placed)
+// Returns escrowed item back to seller if already deposited.
+// ----------------------------------------------------------------------------
+export circuit cancelAuction(): [] {
+    assert(state == AuctionState.Active && totalBids == 0,
+           "Cannot cancel auction after bids have been submitted");
+    verifySellerAuth();
+
+    if (itemDeposited) {
+        const sellerRecipient = Either<ContractAddress, UserAddress> {
+            is_left: false,
+            left: ContractAddress { bytes: pad(32, "") },
+            right: UserAddress { bytes: sellerRecipientAddress }
+        };
+        sendUnshielded(disclose(item), disclose(itemAmount), sellerRecipient);
+        itemDeposited = false;
+    }
+
+    state = AuctionState.Cancelled;
+}
+
+// ----------------------------------------------------------------------------
+// Circuit 3: Place Bid with Native Token Escrow & Accumulating Outbid Refunds
+// Requires item to be deposited in escrow before bids are accepted.
+// ----------------------------------------------------------------------------
+export circuit placeBid(
+    bidAmount: Uint<128>,
+    bidderRefundAddress: Bytes<32>
+): [] {
+    assert(state == AuctionState.Active, "Auction is not active for bidding");
+    assert(itemDeposited, "Item must be deposited into escrow before bidding can start");
+    assert(blockTimeLt(deadline), "Bidding deadline has passed");
+
+    const secret = secretKey();
+    const callerId = deriveIdentity(secret);
+
+    // Guard: Seller cannot bid on their own auction
+    assert(callerId != seller, "Seller cannot bid on their own auction");
+
+    // Guard: Bid must meet reserve price and exceed current highest bid
+    assert(bidAmount >= reservePrice, "Bid amount is below the reserve price");
+    assert(bidAmount > highestBid, "Bid amount must strictly exceed current highest bid");
+
+    // Midnight Token Escrow: lock tokens into smart contract
+    receiveUnshielded(nativeToken(), disclose(bidAmount));
+
+    // Pull-over-push refund: If there was a previous highest bidder, accumulate their escrow refund
+    if (highestBid > 0 && highestBidder != pad(32, "")) {
+        const prevBidder = highestBidder;
+        const prevAmount = highestBid;
+        const currentRefund = pendingRefunds.member(prevBidder) ? pendingRefunds.lookup(prevBidder) : 0;
+        pendingRefunds.insert(prevBidder, (currentRefund + prevAmount) as Uint<128>);
+    }
+
+    // Record new highest bid
+    highestBidder = disclose(callerId);
+    highestBidderRecipient = disclose(bidderRefundAddress);
+    highestBid = disclose(bidAmount);
+    totalBids = (totalBids + 1) as Uint<64>;
+}
+
+// ----------------------------------------------------------------------------
+// Circuit 4: End Bidding Phase (Permissionless Crank - requires deadline passed)
+// No seller authorization required; no early-end path exists.
+// ----------------------------------------------------------------------------
+export circuit endAuction(): [] {
+    assert(state == AuctionState.Active, "Auction is not active");
+    assert(blockTimeGte(deadline), "Cannot end auction before bidding deadline has passed");
+    state = AuctionState.Ended;
+}
+
+// ----------------------------------------------------------------------------
+// Circuit 5: Settle Auction (Permissionless Crank - callable by anyone after Ended)
+// ----------------------------------------------------------------------------
+export circuit settleAuction(): [] {
+    assert(state == AuctionState.Ended, "Auction must be Ended to settle");
+    state = AuctionState.Settled;
+}
+
+// ----------------------------------------------------------------------------
+// Circuit 6: Seller Claim Winning Escrow Funds (Seller Only, Once)
+// ----------------------------------------------------------------------------
+export circuit sellerClaimFunds(): [] {
+    assert(state == AuctionState.Settled, "Auction must be Settled to claim funds");
+    assert(!sellerFundsClaimed, "Seller funds have already been claimed");
+    assert(totalBids > 0 && highestBid > 0, "No winning funds to claim in zero-bid auction");
+    verifySellerAuth();
+
+    sellerFundsClaimed = true;
+
+    // Real Native Token Transfer from Contract Escrow to Seller Payout Address
+    const sellerRecipient = Either<ContractAddress, UserAddress> {
+        is_left: false,
+        left: ContractAddress { bytes: pad(32, "") },
+        right: UserAddress { bytes: sellerRecipientAddress }
+    };
+    sendUnshielded(nativeToken(), disclose(highestBid), sellerRecipient);
+}
+
+// ----------------------------------------------------------------------------
+// Circuit 7: Seller Reclaim Unsold Escrowed Item (Seller Only, Zero-Bid Settle)
+// ----------------------------------------------------------------------------
+export circuit sellerReclaimUnsoldItem(): [] {
+    assert(state == AuctionState.Settled, "Auction must be Settled to reclaim unsold item");
+    assert(totalBids == 0, "Item can only be reclaimed if no bids were placed");
+    assert(itemDeposited && !sellerItemReclaimed, "Item has already been reclaimed or was not in escrow");
+    verifySellerAuth();
+
+    sellerItemReclaimed = true;
+    itemDeposited = false;
+
+    const sellerRecipient = Either<ContractAddress, UserAddress> {
+        is_left: false,
+        left: ContractAddress { bytes: pad(32, "") },
+        right: UserAddress { bytes: sellerRecipientAddress }
+    };
+    sendUnshielded(disclose(item), disclose(itemAmount), sellerRecipient);
+}
+
+// ----------------------------------------------------------------------------
+// Circuit 8: Winner Claim Item (Winner Only, Once - transfers item to winner)
+// ----------------------------------------------------------------------------
+export circuit winnerClaimItem(recipientAddress: Bytes<32>): [] {
+    assert(state == AuctionState.Settled, "Auction must be Settled to claim item");
+    assert(totalBids > 0, "No winner in zero-bid auction");
+    assert(!winnerItemClaimed, "Item has already been claimed");
+    assert(itemDeposited, "Item is not in escrow");
+    verifyWinnerAuth();
+
+    winnerItemClaimed = true;
+    itemDeposited = false;
+
+    // Use caller-provided recipient or fallback to winner's recorded refund address
+    const disclosedRecipient = disclose(recipientAddress);
+    const targetAddress = disclosedRecipient == pad(32, "") ? highestBidderRecipient : disclosedRecipient;
+
+    const winnerRecipient = Either<ContractAddress, UserAddress> {
+        is_left: false,
+        left: ContractAddress { bytes: pad(32, "") },
+        right: UserAddress { bytes: targetAddress }
+    };
+    sendUnshielded(disclose(item), disclose(itemAmount), winnerRecipient);
+}
+
+// ----------------------------------------------------------------------------
+// Circuit 9: Withdraw Outbid Escrow Refund (Accumulated refunds, Reentrancy-Safe)
+// ----------------------------------------------------------------------------
+export circuit withdrawRefund(recipientAddress: Bytes<32>): [] {
+    const secret = secretKey();
+    const callerId = deriveIdentity(secret);
+    const pubCallerId = disclose(callerId);
+
+    // Verify bidder has a refundable escrow deposit
+    assert(pendingRefunds.member(pubCallerId), "No pending escrow refund found for caller");
+    const refundAmount = pendingRefunds.lookup(pubCallerId);
+    assert(refundAmount > 0, "Refund amount must be greater than zero");
+
+    // Zero out pending refund before transfer (Checks-Effects-Interactions)
+    pendingRefunds.insert(pubCallerId, 0);
+    totalRefundsClaimed = (totalRefundsClaimed + 1) as Uint<64>;
+
+    // Real Native Token Transfer from Contract Escrow back to Outbid Bidder
+    const bidderRecipient = Either<ContractAddress, UserAddress> {
+        is_left: false,
+        left: ContractAddress { bytes: pad(32, "") },
+        right: UserAddress { bytes: disclose(recipientAddress) }
+    };
+    sendUnshielded(nativeToken(), disclose(refundAmount), bidderRecipient);
+}
+

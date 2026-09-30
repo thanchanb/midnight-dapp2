@@ -1,6 +1,27 @@
+# Dependencies
 node_modules/
+
+# Production build artifacts
 dist/
+
+# OS and Environment
 .DS_Store
 *.log
 .env
-EOF
+.env.local
+.env.*.local
+!.env.example
+
+# Local databases & private storage
+shadow_vault_*_db/
+*.db
+
+# Deployment receipts containing live transaction metadata
+deployment-receipt.json
+
+# Temporary compiler artifacts
+scratch/
+
+# Test coverage & live run outputs
+coverage/
+e2e-result.json

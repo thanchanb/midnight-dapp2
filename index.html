@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>🌙 Midnight ShadowVault — Privacy DApp (Preprod Testnet)</title>
-  <meta name="description" content="Privacy-preserving zero-knowledge conditional escrow & secret verification DApp built on Midnight Blockchain with Compact WASM Prover and Lace Wallet.">
+  <title>🌙 Midnight ShadowVault — Transparent English Auction & Native Escrow Protocol</title>
+  <meta name="description" content="Transparent open English auction and native token escrow protocol built on Midnight Blockchain with Compact and Lace Wallet.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
@@ -17,8 +17,8 @@
       <div class="brand">
         <div class="logo-icon">🌙</div>
         <div class="brand-text">
-          <span class="title">ShadowVault</span>
-          <span class="subtitle">Midnight ZK Escrow Protocol</span>
+          <span class="title">ShadowVault Auction</span>
+          <span class="subtitle">Midnight Open Auction & Native Escrow</span>
         </div>
       </div>
 
@@ -61,21 +61,21 @@
     <!-- Main Container -->
     <main class="main-container">
       
-      <!-- Hero Privacy Banner / Observable Privacy Architecture -->
+      <!-- Auction Architecture Banner -->
       <section class="privacy-banner">
         <div class="banner-header">
-          <span class="badge badge-purple">🛡️ Observable Privacy Architecture</span>
-          <h2>Zero-Knowledge Proofs in Action</h2>
-          <p>Your secret witness is evaluated locally and proven via the Midnight toolchain and proof server. The raw passphrase never touches the public ledger — only zero-knowledge state proofs and cryptographic commitments update the Midnight Preprod blockchain.</p>
+          <span class="badge badge-purple">🏛️ Transparent English Auction Protocol</span>
+          <h2>Open Bidding with On-Chain Native Token Escrow</h2>
+          <p>This protocol implements an open English auction with public bid amounts and on-chain Midnight native token escrow. The auctioned item itself is not escrowed on-chain; only the bid funds are locked and protected in contract escrow with accumulating outbid refunds.</p>
         </div>
 
         <div class="privacy-pipeline">
           <div class="pipe-step">
             <div class="step-num">01</div>
             <div class="step-content">
-              <h4>Client Private Witness</h4>
-              <p>Passphrase held in local client memory</p>
-              <code id="privateWitnessStatus" class="code-tag">🔒 Local & Unexposed</code>
+              <h4>Single Secret Key Witness</h4>
+              <p>Derived caller identity</p>
+              <code id="privateWitnessStatus" class="code-tag">🔒 Secret Key Witness</code>
             </div>
           </div>
 
@@ -84,8 +84,8 @@
           <div class="pipe-step">
             <div class="step-num">02</div>
             <div class="step-content">
-              <h4>Real ZK Prover</h4>
-              <p>Proof server synthesis on port 6300</p>
+              <h4>Actix Proof Server</h4>
+              <p>ZK proving on port 6300</p>
               <code id="proverStatus" class="code-tag green">⚡ Prover Ready</code>
             </div>
           </div>
@@ -95,8 +95,8 @@
           <div class="pipe-step">
             <div class="step-num">03</div>
             <div class="step-content">
-              <h4>Preprod Public Ledger</h4>
-              <p>On-chain state & indexer confirmation</p>
+              <h4>Midnight Preprod Ledger</h4>
+              <p>State machine & native token escrow</p>
               <code id="ledgerStatusTag" class="code-tag cyan">📜 Indexer Verified</code>
             </div>
           </div>
@@ -109,88 +109,154 @@
         <!-- Left Panel: Contract Control Form -->
         <section class="card form-card">
           <div class="card-header">
-            <h3>⚡ Contract Circuit Interaction</h3>
-            <span class="badge badge-cyan">Midnight.js Contract Binding</span>
+            <h3>⚡ Auction Lifecycle Circuits</h3>
+            <span class="badge badge-cyan">Midnight.js Native Escrow Binding</span>
           </div>
 
           <div class="tabs">
-            <button class="tab-btn active" data-tab="counter">0. Counter Circuit</button>
-            <button class="tab-btn" data-tab="init">1. Initialize Vault</button>
-            <button class="tab-btn" data-tab="claim">2. ZK Claim</button>
-            <button class="tab-btn" data-tab="revoke">3. Revoke</button>
+            <button class="tab-btn active" data-tab="setup">1. Deploy Auction</button>
+            <button class="tab-btn" data-tab="bid">2. Place Escrow Bid</button>
+            <button class="tab-btn" data-tab="rounds">3. Close Bidding</button>
+            <button class="tab-btn" data-tab="settle">4. Settle</button>
+            <button class="tab-btn" data-tab="claim">5. Claim / Refund</button>
           </div>
 
-          <!-- Tab Content: Counter -->
-          <div class="tab-content active" id="tab-counter">
-            <p class="tab-desc">Execute real <code>callTx.incrementCounter()</code> through Midnight.js contract binding on Midnight Preprod.</p>
-            <button id="btnExecCounter" class="btn btn-primary btn-block">
-              <span>➕ Execute incrementCounter Circuit</span>
-            </button>
-            <div class="circuit-tx-result" id="counterTxResult" style="display: none; margin-top: 1rem; padding: 0.75rem; background: rgba(0, 242, 254, 0.08); border: 1px solid var(--accent-cyan); border-radius: 6px;">
-              <span class="tx-label" style="font-size: 0.75rem; color: var(--text-muted); display: block;">Confirmed Transaction ID:</span>
-              <span class="tx-id-val" id="counterTxId" style="font-family: var(--font-mono); font-size: 0.82rem; color: var(--accent-cyan); word-break: break-all;">--</span>
-            </div>
-          </div>
-
-          <!-- Tab Content: Initialize -->
-          <div class="tab-content" id="tab-init">
-            <p class="tab-desc">Post a zero-knowledge commitment on-chain to create a shielded escrow vault.</p>
+          <!-- Tab Content: 1. Deploy Auction -->
+          <div class="tab-content active" id="tab-setup">
+            <p class="tab-desc">Atomically deploy and initialize the auction with item, seller payout address, reserve price, and block-time deadline via the contract constructor.</p>
             
             <div class="form-group">
-              <label for="initPassphrase">Secret Vault Passphrase (Private Witness)</label>
+              <label for="auctionItemInput">Auction Item Identifier (Name or 32-byte Hex)</label>
+              <input type="text" id="auctionItemInput" placeholder="Enter item name or hex data" value="Midnight Genesis Item">
+            </div>
+
+            <div class="form-group">
+              <label for="sellerSecretInput">Seller Secret Key (Private Witness)</label>
               <div class="input-wrapper">
-                <input type="password" id="initPassphrase" placeholder="Enter secret vault passphrase">
-                <button class="toggle-pwd" id="toggleInitPwd" type="button">👁️</button>
+                <input type="password" id="sellerSecretInput" placeholder="Enter secret key or leave blank for auto-generated">
+                <button class="toggle-pwd" id="toggleSellerPwd" type="button">👁️</button>
               </div>
-              <small>This secret stays 100% private in browser memory.</small>
+              <small>Used to derive seller identity and verify authorization for cancelling and claiming funds.</small>
             </div>
 
             <div class="form-group">
-              <label for="initSalt">User Private Salt (32-byte Hex)</label>
-              <div class="input-wrapper" style="display: flex; gap: 0.5rem; align-items: center;">
-                <input type="text" id="initSalt" placeholder="Enter 32-byte hex salt or generate" style="flex: 1;">
-                <button class="btn-text" id="btnGenSalt" type="button" style="padding: 0.5rem 0.75rem; font-size: 0.8rem; background: var(--bg-surface-2); border: 1px solid var(--border-color); border-radius: 6px; color: var(--accent-cyan); cursor: pointer; white-space: nowrap;">🎲 Random</button>
+              <label for="sellerPayoutInput">Seller Payout Address (32-byte Hex, optional)</label>
+              <input type="text" id="sellerPayoutInput" placeholder="Defaults to connected wallet address">
+            </div>
+
+            <div class="form-row" style="display: flex; gap: 1rem;">
+              <div class="form-group" style="flex: 1;">
+                <label for="reservePriceInput">Reserve Price (Dust)</label>
+                <input type="number" id="reservePriceInput" value="1000" min="1">
               </div>
-              <small>Cryptographic salt combined with passphrase to form on-chain commitment via <code>persistentHash</code>.</small>
+              <div class="form-group" style="flex: 1;">
+                <label for="deadlineRoundsInput">Deadline (Epoch Seconds)</label>
+                <input type="number" id="deadlineRoundsInput" placeholder="e.g. 1760000000">
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+              <button id="btnDeployContract" class="btn btn-primary" style="flex: 1;">
+                <span>🚀 Deploy & Initialize Auction</span>
+              </button>
+              <button id="btnCancelAuction" class="btn btn-danger" style="flex: 1;">
+                <span>🚫 Cancel (0 Bids Only)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab Content: 2. Submit Real Escrow Bid -->
+          <div class="tab-content" id="tab-bid">
+            <div class="warning-banner" role="alert">
+              <strong>⚠️ CRITICAL SECURITY WARNING:</strong>
+              Your bidder secret key is encrypted in your browser's private state provider (LevelDB/IndexedDB), never stored in plaintext localStorage or sessionStorage. 
+              <strong>Losing this secret key means PERMANENTLY losing all refund and item claim rights!</strong>
+              Make sure to back up your secret key if you clear your browser storage.
+            </div>
+            <p class="tab-desc">Place an ascending bid with real native token escrow locked by the contract. Outbid bidders receive accumulating refundable balances.</p>
+            
+            <div class="form-group">
+              <label for="bidAmountInput">Bid Amount (Dust Tokens to Escrow)</label>
+              <input type="number" id="bidAmountInput" placeholder="e.g. 1500" min="1">
+              <small>Must meet the reserve price and exceed the current highest bid. Block time must be before deadline.</small>
             </div>
 
             <div class="form-group">
-              <label for="initOwnerId">Vault Owner Public Identifier (32-byte Hex)</label>
-              <input type="text" id="initOwnerId" placeholder="Enter 32-byte hex owner ID">
+              <label for="bidSecretInput">Bidder Secret Key (Private Witness)</label>
+              <div class="input-wrapper">
+                <input type="password" id="bidSecretInput" placeholder="Enter bidder secret passphrase">
+                <button class="toggle-pwd" id="toggleBidPwd" type="button">👁️</button>
+              </div>
+              <small>Used to derive bidder identity in circuit. Kept strictly confidential in client memory.</small>
             </div>
 
-            <button id="btnExecInit" class="btn btn-primary btn-block">
-              <span>🚀 Execute initializeVault Circuit</span>
+            <div class="form-group">
+              <label for="bidRefundAddressInput">Bidder Refund Address (32-byte Hex, optional)</label>
+              <input type="text" id="bidRefundAddressInput" placeholder="Defaults to connected wallet address">
+            </div>
+
+            <button id="btnSubmitBid" class="btn btn-primary btn-block">
+              <span>🛡️ Place Real Escrow Bid (Native Token Lock)</span>
             </button>
           </div>
 
-          <!-- Tab Content: Claim -->
+          <!-- Tab Content: 3. Close Bidding -->
+          <div class="tab-content" id="tab-rounds">
+            <p class="tab-desc">Close the bidding phase once the bidding deadline has passed. This is a permissionless crank requiring no seller authorization.</p>
+            
+            <div style="margin-top: 1rem;">
+              <button id="btnEndAuction" class="btn btn-primary btn-block">
+                <span>⏹️ End Bidding Phase (Block Time >= Deadline)</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab Content: 4. Settle & Seller Claim -->
+          <div class="tab-content" id="tab-settle">
+            <p class="tab-desc">Permissionless settlement finalizes the winning bid once Ended. Seller can then claim winning escrowed funds.</p>
+            
+            <div style="display: flex; gap: 0.75rem; margin-top: 1rem;">
+              <button id="btnSettleAuction" class="btn btn-success" style="flex: 1;">
+                <span>⚖️ Settle Auction (Permissionless Crank)</span>
+              </button>
+              <button id="btnSellerClaimFunds" class="btn btn-primary" style="flex: 1;">
+                <span>💵 Seller Claim Escrow Funds</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Tab Content: 5. Claim Item / Refund -->
           <div class="tab-content" id="tab-claim">
-            <p class="tab-desc">Prove knowledge of the private witness secret to claim the vault without exposing the raw secret to the public ledger.</p>
+            <div class="warning-banner" role="alert">
+              <strong>⚠️ CRITICAL SECURITY WARNING:</strong>
+              Claims and refunds cryptographically verify your private witness secret key against the on-chain bidder commit.
+              <strong>Losing your private secret key means PERMANENTLY losing all refund and item claim rights!</strong>
+            </div>
+            <p class="tab-desc">Winner claims auction item title; outbid bidders reclaim their accumulated locked escrow deposits.</p>
             
             <div class="form-group">
-              <label for="claimPassphrase">Vault Passphrase (Private Witness)</label>
-              <div class="input-wrapper">
-                <input type="password" id="claimPassphrase" placeholder="Enter matching secret passphrase">
-                <button class="toggle-pwd" id="toggleClaimPwd" type="button">👁️</button>
-              </div>
+              <label for="winnerSecretInput">Winner Secret Witness (to claim item title)</label>
+              <input type="password" id="winnerSecretInput" placeholder="Enter winner secret passphrase">
+            </div>
+
+            <button id="btnClaimWinner" class="btn btn-success btn-block" style="margin-bottom: 1.5rem;">
+              <span>🏆 Winner Claim Item Title</span>
+            </button>
+
+            <hr style="border: 0; border-top: 1px solid var(--border-color); margin: 1.5rem 0;">
+
+            <div class="form-group">
+              <label for="refundSecretInput">Outbid Bidder Secret Witness (to claim refund)</label>
+              <input type="password" id="refundSecretInput" placeholder="Enter outbid bidder secret">
             </div>
 
             <div class="form-group">
-              <label for="claimSalt">User Private Salt (32-byte Hex)</label>
-              <input type="text" id="claimSalt" placeholder="Enter 32-byte hex salt">
+              <label for="refundAddressInput">Refund Recipient Address (32-byte Hex, optional)</label>
+              <input type="text" id="refundAddressInput" placeholder="Defaults to connected wallet address">
             </div>
 
-            <button id="btnExecClaim" class="btn btn-success btn-block">
-              <span>🔑 Execute verifyAndClaim Circuit</span>
-            </button>
-          </div>
-
-          <!-- Tab Content: Revoke -->
-          <div class="tab-content" id="tab-revoke">
-            <p class="tab-desc">Transition vault status to revoked if escrow conditions are violated. Evaluated in zero-knowledge via private owner witness without on-chain disclosure.</p>
-            <button id="btnExecRevoke" class="btn btn-danger btn-block">
-              <span>🚫 Execute revokeVault Circuit</span>
+            <button id="btnClaimRefund" class="btn btn-primary btn-block">
+              <span>💰 Withdraw Accumulated Escrow Refund</span>
             </button>
           </div>
         </section>
@@ -204,18 +270,23 @@
 
           <div class="ledger-metrics">
             <div class="metric-box">
-              <span class="metric-label">Ledger Counter</span>
-              <span class="metric-value" id="displayCounterValue">--</span>
+              <span class="metric-label">Auction State</span>
+              <span class="metric-value badge-state" id="displayAuctionState">ACTIVE</span>
             </div>
 
             <div class="metric-box">
-              <span class="metric-label">Vault State</span>
-              <span class="metric-value badge-state" id="displayVaultState">UNLOADED</span>
+              <span class="metric-label">Deadline</span>
+              <span class="metric-value" id="displayRoundDeadline">--</span>
             </div>
 
             <div class="metric-box">
-              <span class="metric-label">Total Deposits</span>
-              <span class="metric-value" id="displayTotalDeposits">--</span>
+              <span class="metric-label">Highest Bid</span>
+              <span class="metric-value" id="displayHighestBid">0</span>
+            </div>
+
+            <div class="metric-box">
+              <span class="metric-label">Total Bids / Refunds</span>
+              <span class="metric-value" id="displayTotalBidsRefunds">0 / 0</span>
             </div>
           </div>
 
@@ -228,7 +299,6 @@
             <div class="contract-actions">
               <input type="text" id="inputContractAddr" placeholder="Paste deployed contract address..." class="contract-input">
               <button id="btnJoinContract" class="btn btn-secondary">Join</button>
-              <button id="btnDeployContract" class="btn btn-primary">Deploy New</button>
             </div>
           </div>
 
@@ -238,13 +308,13 @@
           </div>
 
           <div class="info-group">
-            <label>Public Commitment Hash</label>
-            <div class="hash-box" id="displayCommitmentHash">--</div>
+            <label>Highest Bidder (Public Identifier)</label>
+            <div class="hash-box" id="displayHighestBidder">--</div>
           </div>
 
           <div class="info-group">
-            <label>Last Disclosed Witness Hash</label>
-            <div class="hash-box" id="displayDisclosedHash">--</div>
+            <label>Winning Escrow & Item Title Status</label>
+            <div class="hash-box" id="displayWinningStatus">--</div>
           </div>
 
           <!-- Console Terminal Output -->
@@ -255,7 +325,7 @@
             </div>
             <div class="terminal-body" id="terminalLog">
               <div class="log-line dim">[System] Connected to Midnight Preprod Testnet</div>
-              <div class="log-line green">[System] ShadowVault contract bindings ready</div>
+              <div class="log-line green">[System] ShadowVault transparent English auction contract bindings ready</div>
               <div class="log-line cyan">[Lace Wallet] Connect wallet to begin interacting with the live network</div>
             </div>
           </div>

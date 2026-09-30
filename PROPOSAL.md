@@ -1,38 +1,40 @@
-# 📜 Product Proposal: ShadowVault Sealed-Bid Auction & Confidential Escrow Protocol
+# 📜 Product Proposal: ShadowVault Open English Auction & Native Escrow Protocol
 
-[![September 2026 Revision](https://img.shields.io/badge/Proposal--Status-Approved--Idea--Selection-00e676?style=for-the-badge&logo=github)](https://github.com/thanchanb/midnight-dapp2)
+[![September 2026 Revision](https://img.shields.io/badge/Proposal--Status-Audited--Implementation-00e676?style=for-the-badge&logo=github)](https://github.com/thanchanbhumij/midnight-dapp2)
 
-> **Midnight Blockchain Level 3 Idea List Selection**: *Option 5 — Sealed-Bid Auction & Confidential Escrow Protocol (Private bids, verifiable winner)*
+> **Midnight Blockchain Decentralized Auction & Escrow Protocol**: *Transparent English Auction with Native Token Escrow, Pull-over-Push Refunds, and Domain-Separated Zero-Knowledge Identity Verification.*
 
 ---
 
 ## 🎯 Executive Overview
 
-**ShadowVault Sealed-Bid Auction** is a privacy-preserving smart contract protocol built on the Midnight Blockchain. It enables high-value asset auctions, secret procurement bidding, and confidential escrows where bidders submit client-side zero-knowledge bid commitments. Bid amounts, bidder identities, and salt parameters remain 100% private during the bidding phase. When the auction closes, the winner proves their winning bid using client-side ZK proof generation without revealing losing bid values to public ledger observers.
+**ShadowVault** is a decentralized smart contract protocol built on the Midnight Blockchain. It enables transparent, verifiable English auctions where bidders place on-chain bids backed by native token escrow locked directly in the smart contract. Outbid deposits accumulate in an on-chain escrow balance map (`pendingRefunds`) and can be withdrawn asynchronously by outbid bidders via pull-over-push accounting. Bidding deadlines are strictly governed by consensus block time, and finalization is executed via permissionless cranks.
 
 ---
 
-## 🔍 Problem Statement & Market Need
+## 🔍 Architecture & Economic Design
 
-### The Challenge on Public Blockchains
-On public blockchains (Ethereum, Solana, Cardano), smart contract state is completely transparent. As a result:
-1. **Front-Running & MEV Exploitation**: Malicious actors inspect pending mempool bids and outbid honest users by minimal increments.
-2. **Bid Leakage**: Public visibility forces participants to reveal their true willingness-to-pay, distorting market efficiency.
-3. **Shill Bidding**: Sellers can observe incoming bids and artificially drive prices up.
+### 1. Transparent Bidding with Native Token Escrow
+- Bids are placed openly on-chain: `placeBid(bidAmount, bidderRefundAddress)` requires `bidAmount >= reservePrice` and `bidAmount > highestBid`.
+- Bid funds are locked into contract escrow via Midnight native token operations (`receiveUnshielded`).
+- When a bidder is outbid, their deposit is accumulated into `pendingRefunds.lookup(prevBidder) + prevAmount`, ensuring solvency.
 
-### The Midnight Solution
-Using Midnight's **Compact smart contract language** and **hybrid zero-knowledge ledger state**:
-- Bids are constructed off-chain as **Private Witnesses** (`secretWitness()`).
-- Bidders post cryptographic commitment hashes (`disclose(hash)`) on-chain.
-- The winning bidder proves compliance with auction rules via client-side zero-knowledge proofs without exposing losing bid data.
+### 2. Consensus Block-Time Enforcement
+- The auction deadline is enforced directly via Midnight Compact standard library time comparison functions (`blockTimeLt(deadline)` in `placeBid` and `blockTimeGte(deadline)` in `endAuction`).
+- Manual round counters and arbitrary early-termination paths have been eliminated.
+
+### 3. Permissionless State Machine & Settlement
+- The lifecycle follows: `Active (0) -> Ended (1) -> Settled (2)` (or `Cancelled (3)` if seller cancels before any bids).
+- `endAuction` and `settleAuction` are permissionless cranks callable by any participant once consensus time has elapsed.
+- Settlement allows the seller to claim winning escrow funds (`sellerClaimFunds`) and the winner to claim the auction item entitlement (`winnerClaimItem`).
 
 ---
 
 ## 👤 Targeted User Personas
 
-1. **Enterprise Procurement Managers**: Organizations soliciting sealed bids from vendors without exposing competitive pricing structures.
-2. **Confidential Real-Estate & NFT Auctioneers**: Sellers auctioning high-value physical or digital property where bid privacy is legally required.
-3. **DeFi Privacy Traders**: Liquidity providers settling secret OTC trades and batch auctions without MEV exposure.
+1. **Decentralized Asset Sellers**: Creators and asset holders requiring trustless escrow auctions without custodial intermediaries.
+2. **On-Chain Auction Bidders**: Participants who need deterministic refund guarantees when outbid.
+3. **Automated Protocol Keepers**: Cranks and bots that trigger state transitions once block-time deadlines pass.
 
 ---
 
@@ -40,11 +42,11 @@ Using Midnight's **Compact smart contract language** and **hybrid zero-knowledge
 
 | Data Component | Visibility | Execution Layer | Purpose |
 | :--- | :--- | :--- | :--- |
-| **Bid Amount & Passphrase** | 🔒 Private Witness | Client Browser | Stored in local memory; used to construct ZK proof. Never sent on-network. |
-| **Bidder Salt (`userSalt`)** | 🔒 Private Witness | Client Browser | Prevents dictionary attacks on commitment hashes. |
-| **Commitment Hash** | 📜 Public Ledger | Midnight Preprod | SHA-256 digest of secret bid posted during `initializeVault`. |
-| **Auction State Enum** | 📜 Public Ledger | Midnight Preprod | State tracking (`uninitialized`, `active`, `claimed`, `revoked`). |
-| **Winner Disclosure (`disclose()`)** | 📜 Public Ledger | Midnight Preprod | Explicit opt-in disclosure of winning commitment digest upon verified claim. |
+| **Caller Secret (`secretKey`)** | 🔒 Private Witness | Client Memory | Private seed used to derive caller's public identity; never disclosed. |
+| **Derived Identity** | 📜 Public Ledger | Midnight Preprod | Hash digest `persistentHash(["midnight.auction.identity", secretKey])` binding bidder/seller. |
+| **Bid Amount & Item ID** | 📜 Public Ledger | Midnight Preprod | Public ledger state ensuring open auction price discovery. |
+| **Auction State Enum** | 📜 Public Ledger | Midnight Preprod | Public lifecycle state (`Active = 0, Ended = 1, Settled = 2, Cancelled = 3`). |
+| **Escrow Map (`pendingRefunds`)** | 📜 Public Ledger | Midnight Preprod | Maps bidder identity to accumulated refundable token amounts. |
 
 ---
 
@@ -52,41 +54,27 @@ Using Midnight's **Compact smart contract language** and **hybrid zero-knowledge
 
 ```mermaid
 stateDiagram-v2
-    [*] --> Uninitialized: Deploy Contract
-    Uninitialized --> Active: initializeVault(commitment, ownerId)
-    Active --> Claimed: verifyAndClaim() via ZK Proof
-    Active --> Revoked: revokeVault() by Owner
-    Claimed --> [*]
-    Revoked --> [*]
+    [*] --> Active: constructor(item, sellerPayoutAddress, reservePrice, deadline)
+    Active --> Cancelled: cancelAuction() [Seller only, 0 bids]
+    Active --> Ended: endAuction() [Permissionless crank, blockTime >= deadline]
+    Ended --> Settled: settleAuction() [Permissionless crank]
+    Settled --> [*]: sellerClaimFunds(), winnerClaimItem(), withdrawRefund()
 ```
 
-### Circuit Interfaces (`src/shadow_vault.compact`)
-1. `initializeVault(commitment: Bytes<32>, ownerId: Bytes<32>): []`  
-   - Binds the sealed-bid commitment and transitions state to `active`.
-2. `verifyAndClaim(): []`  
-   - Verifies the private witness passphrase and salt off-chain, verifies commitment hash, and transitions state to `claimed`.
-3. `revokeVault(): []`  
-   - Cancels auction if conditions are unfulfilled.
-
----
-
-## 🛡️ Privacy Model Summary
-
-- **What an Observer CAN Learn**:
-  - Total number of bids submitted (`totalDeposits`).
-  - Public commitment hashes (`publicCommitment`).
-  - Current auction state (`VaultState`).
-  - Block timestamp and transaction IDs.
-- **What an Observer CANNOT Learn**:
-  - Raw secret bid amounts or passphrases.
-  - Bidder wallet identity or salt keys.
-  - Losing bid values or unrevealed private state.
+### Circuit Interfaces (`contracts/shadow_vault.compact`)
+1. `cancelAuction(): []` — Seller cancels auction if no bids have occurred.
+2. `placeBid(bidAmount, bidderRefundAddress): []` — Places new highest bid, locks funds in escrow, accumulates previous bidder refund.
+3. `endAuction(): []` — Closes bidding once consensus block time passes deadline.
+4. `settleAuction(): []` — Finalizes winning bid.
+5. `sellerClaimFunds(): []` — Seller transfers winning funds from escrow.
+6. `winnerClaimItem(): []` — Winner records entitlement claim.
+7. `withdrawRefund(recipientAddress): []` — Outbid bidder claims accumulated escrow refund.
 
 ---
 
 ## 🗺️ Product Roadmap
 
-- [x] **Level 1 (New Moon)**: Toolchain installation, Compact contract creation, managed ZK circuit generation.
-- [x] **Level 2 (Waxing Crescent)**: Lace Wallet DApp connector integration, Web UI implementation, observable privacy demo.
-- [x] **Level 3 (First Quarter)**: CI/CD GitHub Actions pipeline, production build, formal product proposal.
-- [ ] **Level 4 (Full Moon)**: Mainnet deployment, multi-bidder sealed auction aggregation, automated refund escrow.
+- [x] **Level 1 (New Moon)**: Toolchain setup, Compact smart contract compilation, managed ZK circuits.
+- [x] **Level 2 (Waxing Crescent)**: Lace Wallet DApp connector integration, Web UI implementation, ledger sync.
+- [x] **Level 3 (First Quarter)**: CI/CD GitHub Actions pipeline, production build, formal security audit & regression verification.
+- [ ] **Level 4 (Full Moon)**: Mainnet deployment, multi-asset escrow vaults, cross-chain bridge settlement.
